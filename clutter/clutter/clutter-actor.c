@@ -18657,10 +18657,10 @@ clutter_actor_detach_grab (ClutterActor *self,
   priv->grabs = g_list_remove (priv->grabs, grab);
 }
 
-void
-clutter_actor_collect_event_actors (ClutterActor *self,
-                                    ClutterActor *deepmost,
-                                    GPtrArray    *actors)
+static void
+collect_event_actors (ClutterActor *self,
+                      ClutterActor *deepmost,
+                      GPtrArray    *actors)
 {
   ClutterActor *iter;
   gboolean in_root = FALSE;
@@ -18693,6 +18693,26 @@ clutter_actor_collect_event_actors (ClutterActor *self,
     {
       g_ptr_array_remove_range (actors, 0, actors->len);
       g_ptr_array_add (actors, self);
+    }
+}
+
+void
+clutter_actor_collect_event_actors (ClutterActor       *self,
+                                    ClutterActor       *deepmost,
+                                    GPtrArray          *actors,
+                                    const ClutterEvent *for_event)
+{
+  ClutterActorClass *actor_class = CLUTTER_ACTOR_GET_CLASS (self);
+
+  if (actor_class->collect_event_actors)
+    {
+      GPtrArray *new_array = actor_class->collect_event_actors (self, deepmost, for_event);
+
+      g_ptr_array_extend_and_steal (actors, new_array);
+    }
+  else
+    {
+      collect_event_actors (self, deepmost, actors);
     }
 }
 
@@ -18995,4 +19015,28 @@ clutter_actor_remove_accessible_state (ClutterActor *actor,
 
   if (atk_state_set_remove_state (priv->accessible_state, state) && accessible)
     atk_object_notify_state_change (accessible, state, FALSE);
+}
+
+/**
+ * clutter_actor_get_event_actors:
+ * @self: a #ClutterActor
+ * @deepmost: a
+ *
+ * Decreases the culling inhibitor counter. See clutter_actor_inhibit_culling()
+ * for when inhibit culling is necessary.
+ *
+ * Calling this function without a matching call to
+ * clutter_actor_inhibit_culling() is a programming error.
+ *
+ * Returns: (transfer container) (element-type Clutter.Actor): the arr
+ */
+GPtrArray *
+clutter_actor_get_event_actors (ClutterActor *self,
+                                ClutterActor *deepmost)
+{
+  GPtrArray *array = g_ptr_array_new ();
+
+  collect_event_actors (self, deepmost, array);
+
+  return array;
 }

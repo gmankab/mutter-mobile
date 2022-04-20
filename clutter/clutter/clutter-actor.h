@@ -239,6 +239,18 @@ struct _ClutterActorClass
   void     (* child_removed)        (ClutterActor         *self,
                                      ClutterActor         *child);
 
+  /**
+   * ClutterActorClass::collect_event_actors:
+   * @self: the `ClutterActor`
+   * @deepmost: 
+   * @for_event: a clutterEvent
+   *
+   * Returns: (transfer container) (element-type Clutter.Actor): asij.
+   */
+  GPtrArray * (* collect_event_actors) (ClutterActor       *self,
+                                        ClutterActor       *deepmost,
+                                        const ClutterEvent *for_event);
+
   /* private */
   GType layout_manager_type;
 };
@@ -894,5 +906,9 @@ void clutter_actor_class_set_layout_manager_type (ClutterActorClass *actor_class
                                                   GType              type);
 CLUTTER_EXPORT
 GType clutter_actor_class_get_layout_manager_type (ClutterActorClass *actor_class);
+
+CLUTTER_EXPORT
+GPtrArray * clutter_actor_get_event_actors (ClutterActor *self,
+                                            ClutterActor *deepmost);
 
 G_END_DECLS
