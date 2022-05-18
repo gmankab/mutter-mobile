@@ -250,6 +250,7 @@ enum
   SHOWN,
   HIGHEST_SCALE_MONITOR_CHANGED,
   CONFIGURE,
+  TRANSIENT_FOR_CHANGED,
 
   LAST_SIGNAL
 };
@@ -824,6 +825,20 @@ meta_window_class_init (MetaWindowClass *klass)
                   NULL, NULL, NULL,
                   G_TYPE_NONE, 1,
                   META_TYPE_WINDOW_CONFIG);
+
+  /**
+   * MetaWindow::transient-for-changed:
+   * @window: a #MetaWindow
+   *
+   * Emitted when the transient-for window has changed.
+   */
+  window_signals[TRANSIENT_FOR_CHANGED] =
+    g_signal_new ("transient-for-changed",
+                  G_TYPE_FROM_CLASS (object_class),
+                  G_SIGNAL_RUN_LAST,
+                  0,
+                  NULL, NULL, NULL,
+                  G_TYPE_NONE, 0);
 }
 
 static void
@@ -7536,6 +7551,7 @@ meta_window_set_transient_for (MetaWindow *window,
                                MetaWindow *parent)
 {
   MetaWindowClass *klass = META_WINDOW_GET_CLASS (window);
+  MetaWindow *old_transient_for = window->transient_for;
 
   if (check_transient_for_loop (window, parent))
     {
@@ -7580,6 +7596,9 @@ meta_window_set_transient_for (MetaWindow *window,
 
   if (parent && parent->on_all_workspaces)
     meta_window_stick (window);
+
+  if (window->transient_for != old_transient_for)
+    g_signal_emit (window, window_signals[TRANSIENT_FOR_CHANGED], 0);
 }
 
 void
