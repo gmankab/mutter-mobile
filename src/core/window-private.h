@@ -556,6 +556,7 @@ struct _MetaWindow
   guint is_alive : 1;
 
   guint in_workspace_change : 1;
+  unsigned int can_grab : 1;
 };
 
 struct _MetaWindowClass

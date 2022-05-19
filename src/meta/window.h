@@ -460,3 +460,7 @@ void meta_window_set_maximize_flags   (MetaWindow        *window,
 META_EXPORT
 void meta_window_set_unmaximize_flags (MetaWindow        *window,
                                        MetaMaximizeFlags  directions);
+
+META_EXPORT
+void meta_window_set_can_grab (MetaWindow *window,
+                               gboolean    can_grab);

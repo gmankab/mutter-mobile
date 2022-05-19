@@ -1222,6 +1222,8 @@ meta_window_constructed (GObject *object)
 
   window->compositor_private = NULL;
 
+  window->can_grab = TRUE;
+
   if (frame_rect.width > 0 && frame_rect.height > 0 &&
       (window->size_hints.flags & META_SIZE_HINTS_USER_POSITION))
     {
@@ -8691,4 +8693,25 @@ meta_window_show_in_window_list (MetaWindow *window)
 
   window->skip_from_window_list = FALSE;
   meta_window_recalc_features (window);
+}
+
+void
+meta_window_set_can_grab (MetaWindow *window,
+                          gboolean    can_grab)
+{
+  MetaWindowDrag *window_drag;
+
+  if (window->can_grab == can_grab)
+    return;
+
+  window->can_grab = can_grab;
+
+  window_drag =
+    meta_compositor_get_current_window_drag (window->display->compositor);
+
+  if (!window->can_grab &&
+      window_drag && meta_window_drag_get_window (window_drag) == window)
+    {
+      meta_window_drag_end (window_drag);
+    }
 }

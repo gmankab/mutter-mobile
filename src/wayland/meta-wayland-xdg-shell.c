@@ -483,6 +483,9 @@ xdg_toplevel_unset_maximized (struct wl_client   *client,
   if (!window)
     return;
 
+  if (!window->can_grab)
+    return;
+
   meta_window_unmaximize (window);
 }
 

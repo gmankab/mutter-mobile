@@ -1964,6 +1964,9 @@ meta_window_drag_begin (MetaWindowDrag      *window_drag,
   ClutterStage *stage;
   int root_x, root_y;
 
+  if (!window->can_grab)
+    return FALSE;
+
   grab_window = window;
 
   /* If we're trying to move a window, move the first
