@@ -51,3 +51,5 @@ void clutter_sprite_maybe_break_implicit_grab (ClutterSprite *sprite,
 void clutter_sprite_maybe_lost_implicit_grab (ClutterSprite *sprite);
 
 void clutter_sprite_remove_all_actors_from_chain (ClutterSprite *sprite);
+
+void clutter_sprite_setup_sequence_actions_special (ClutterSprite *sprite);
