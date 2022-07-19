@@ -282,6 +282,9 @@ clutter_pan_gesture_point_began (ClutterGesture *gesture,
   if (active_n_points < priv->min_n_points)
     return;
 
+  if (priv->min_n_points > 1)
+    clutter_gesture_relationships_changed (gesture);
+
   /* Most pan gestures will only want to use the primary button anyway, could
    * expose this as API later if necessary.
    */
