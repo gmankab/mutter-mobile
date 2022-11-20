@@ -1930,6 +1930,8 @@ meta_wayland_surface_delete (MetaWaylandSurface *surface)
   MetaWaylandShellSurface *shell_surface =
     META_WAYLAND_SHELL_SURFACE (surface->role);
 
+  g_return_if_fail (shell_surface != NULL);
+
   meta_wayland_shell_surface_close (shell_surface);
 }
 
@@ -1939,6 +1941,8 @@ meta_wayland_surface_window_managed (MetaWaylandSurface *surface,
 {
   MetaWaylandShellSurface *shell_surface =
     META_WAYLAND_SHELL_SURFACE (surface->role);
+
+  g_return_if_fail (shell_surface != NULL);
 
   meta_wayland_shell_surface_managed (shell_surface, window);
 }
