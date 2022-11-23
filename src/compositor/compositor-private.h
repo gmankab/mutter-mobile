@@ -74,8 +74,6 @@ void meta_compositor_remove_window_actor (MetaCompositor  *compositor,
 
 void meta_compositor_window_actor_stage_views_changed (MetaCompositor *compositor);
 
-void meta_switch_workspace_completed (MetaCompositor *compositor);
-
 META_EXPORT_TEST
 MetaPluginManager * meta_compositor_get_plugin_manager (MetaCompositor *compositor);
 
@@ -99,7 +97,6 @@ gboolean meta_compositor_is_unredirect_inhibited (MetaCompositor *compositor);
 MetaDisplay * meta_compositor_get_display (MetaCompositor *compositor);
 
 MetaWindowActor * meta_compositor_get_top_window_actor (MetaCompositor *compositor);
-gboolean meta_compositor_is_switching_workspace (MetaCompositor *compositor);
 
 gboolean meta_compositor_drag_window (MetaCompositor      *compositor,
                                       MetaWindow          *window,

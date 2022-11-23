@@ -1107,7 +1107,6 @@ meta_window_actor_show (MetaWindowActor   *self,
 {
   MetaWindowActorPrivate *priv =
     meta_window_actor_get_instance_private (self);
-  MetaCompositor *compositor = priv->compositor;
   MetaPluginEffect event;
 
   g_return_if_fail (!priv->visible);
@@ -1132,11 +1131,8 @@ meta_window_actor_show (MetaWindowActor   *self,
   if (event == META_PLUGIN_MAP)
     meta_window_actor_sync_actor_geometry (self, TRUE);
 
-  if (meta_compositor_is_switching_workspace (compositor) ||
-      !start_simple_effect (self, event))
-    {
-      clutter_actor_show (CLUTTER_ACTOR (self));
-    }
+  if (!start_simple_effect (self, event))
+    clutter_actor_show (CLUTTER_ACTOR (self));
 }
 
 void
@@ -1145,19 +1141,11 @@ meta_window_actor_hide (MetaWindowActor *self,
 {
   MetaWindowActorPrivate *priv =
     meta_window_actor_get_instance_private (self);
-  MetaCompositor *compositor = priv->compositor;
   MetaPluginEffect event;
 
   g_return_if_fail (priv->visible);
 
   priv->visible = FALSE;
-
-  /* If a plugin is animating a workspace transition, we have to
-   * hold off on hiding the window, and do it after the workspace
-   * switch completes
-   */
-  if (meta_compositor_is_switching_workspace (compositor))
-    return;
 
   switch (effect)
     {
