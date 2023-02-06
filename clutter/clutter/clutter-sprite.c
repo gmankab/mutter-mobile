@@ -1049,15 +1049,18 @@ clutter_sprite_maybe_break_implicit_grab (ClutterSprite *sprite,
         }
     }
 
-  clutter_actor_set_implicitly_grabbed (priv->implicit_grab_actor, FALSE);
-  priv->implicit_grab_actor = NULL;
-
   if (parent)
     {
       g_assert (clutter_actor_is_mapped (parent));
 
+      clutter_actor_set_implicitly_grabbed (priv->implicit_grab_actor, FALSE);
       priv->implicit_grab_actor = parent;
       clutter_actor_set_implicitly_grabbed (priv->implicit_grab_actor, TRUE);
+    }
+  else
+    {
+      sync_crossings_on_implicit_grab_end (sprite);
+      cleanup_implicit_grab (sprite);
     }
 }
 
