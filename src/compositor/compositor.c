@@ -487,6 +487,8 @@ meta_compositor_size_change_window (MetaCompositor *compositor,
                                     MtkRectangle   *old_buffer_rect)
 {
   MetaWindowActor *window_actor = meta_window_actor_from_window (window);
+  if (!window_actor)
+    return;
 
   meta_window_actor_size_change (window_actor, which_change, old_frame_rect, old_buffer_rect);
 }
