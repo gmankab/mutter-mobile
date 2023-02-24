@@ -3374,6 +3374,8 @@ meta_window_x11_client_message (MetaWindow *window,
           gboolean max;
           MetaMaximizeFlags directions = 0;
 
+  if (window->can_grab)
+    {
           max =
             (action == _NET_WM_STATE_ADD ||
              (action == _NET_WM_STATE_TOGGLE &&
@@ -3399,6 +3401,7 @@ meta_window_x11_client_message (MetaWindow *window,
                 meta_window_raise (window);
               meta_window_set_unmaximize_flags (window, directions);
             }
+}
         }
 
       if (first == x11_display->atom__NET_WM_STATE_MODAL ||
