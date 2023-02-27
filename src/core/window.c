@@ -6024,6 +6024,7 @@ meta_window_recalc_features (MetaWindow *window)
     {
       window->has_move_func = FALSE;
       window->has_resize_func = FALSE;
+      // FIXME: This will proabbly cause issues later with auto-unmax
       window->has_maximize_vert_func = FALSE;
       window->has_maximize_horiz_func = FALSE;
     }
@@ -6102,7 +6103,23 @@ meta_window_recalc_features (MetaWindow *window)
 
   if (window->has_maximize_vert_func != old_has_maximize_vert_func ||
       window->has_maximize_horiz_func != old_has_maximize_horiz_func)
-    g_signal_emit (window, window_signals[CAN_MAXIMIZE_CHANGED], 0);
+    {
+      if ((meta_window_config_is_maximized_horizontally (window->config) && !window->has_maximize_horiz_func) ||
+          (meta_window_config_is_maximized_vertically (window->config) && !window->has_maximize_vert_func))
+        {
+          MetaMaximizeFlags unmaximize_flags = 0;
+
+          if (old_has_maximize_vert_func && !window->has_maximize_vert_func)
+            unmaximize_flags |= META_MAXIMIZE_VERTICAL;
+
+          if (old_has_maximize_horiz_func && !window->has_maximize_horiz_func)
+            unmaximize_flags |= META_MAXIMIZE_HORIZONTAL;
+
+          meta_window_set_unmaximize_flags (window, unmaximize_flags);
+        }
+
+      g_signal_emit (window, window_signals[CAN_MAXIMIZE_CHANGED], 0);
+    }
 }
 
 void
