@@ -2224,17 +2224,13 @@ window_would_mostly_be_covered_by_always_above_window (MetaWindow *window)
 }
 
 void
-meta_window_force_placement (MetaWindow    *window,
-                             MetaPlaceFlag  place_flags)
+meta_window_maybe_place (MetaWindow    *window,
+                         MetaPlaceFlag  place_flags)
 {
   MetaMoveResizeFlags flags;
 
   if (window->placed)
     return;
-
-  /* We have to recalc the placement here since other windows may
-   * have been mapped/placed since we last did constrain_position
-   */
 
   flags = (META_MOVE_RESIZE_MOVE_ACTION |
            META_MOVE_RESIZE_RESIZE_ACTION |
@@ -2247,12 +2243,6 @@ meta_window_force_placement (MetaWindow    *window,
                                     place_flags | META_PLACE_FLAG_CALCULATE,
                                     window->unconstrained_rect,
                                     NULL);
-
-  /* don't ever do the initial position constraint thing again.
-   * This is toggled here so that initially-iconified windows
-   * still get placed when they are ultimately shown.
-   */
-  window->placed = TRUE;
 }
 
 static void
@@ -2368,7 +2358,7 @@ implement_showing (MetaWindow *window,
        */
       if (!window->placed && window_has_buffer (window) &&
           meta_window_config_is_floating (window->config))
-        meta_window_force_placement (window, META_PLACE_FLAG_NONE);
+        meta_window_maybe_place (window, META_PLACE_FLAG_NONE);
 
       meta_window_hide (window);
 
@@ -2449,7 +2439,7 @@ meta_window_show (MetaWindow *window)
 
   if (!window->placed &&
       meta_window_config_is_floating (window->config))
-    meta_window_force_placement (window, place_flags);
+    meta_window_maybe_place (window, place_flags);
 
   if (focus_window &&
       window->showing_for_first_time &&
@@ -4214,7 +4204,7 @@ meta_window_move_resize_internal (MetaWindow          *window,
                      META_MOVE_RESIZE_RESIZE_ACTION |
                      META_MOVE_RESIZE_WAYLAND_FINISH_MOVE_RESIZE));
 
-  did_placement = !window->placed && (place_flags & META_PLACE_FLAG_CALCULATE);
+  did_placement = window->placed;
 
   gravity = meta_window_get_gravity (window);
 
@@ -4283,6 +4273,8 @@ meta_window_move_resize_internal (MetaWindow          *window,
       rel_x = window->placement.pending.rel_x;
       rel_y = window->placement.pending.rel_y;
     }
+
+  did_placement = !did_placement && window->placed;
 
   /* If we did placement, then we need to save the position that the window
    * was placed at to make sure that meta_window_idle_move_resize() places the

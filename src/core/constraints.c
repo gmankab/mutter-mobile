@@ -582,14 +582,11 @@ place_window_if_needed (MetaWindow     *window,
                         MetaPlaceFlag   place_flags,
                         ConstraintInfo *info)
 {
-  gboolean did_placement;
-
   /* Do placement if any, so we go ahead and apply position
    * constraints in a move-only context. Don't place
    * maximized/minimized/fullscreen windows until they are
    * unmaximized, unminimized and unfullscreened.
    */
-  did_placement = FALSE;
   if (window_needs_placement (window, place_flags, info))
     {
       MetaMonitorManager *monitor_manager =
@@ -639,7 +636,7 @@ place_window_if_needed (MetaWindow     *window,
           info->usable_monitor_region =
             meta_workspace_get_onmonitor_region (cur_workspace, logical_monitor);
         }
-      did_placement = TRUE;
+      window->placed = TRUE;
 
       info->current.x = placed_rect.x;
       info->current.y = placed_rect.y;
@@ -650,7 +647,7 @@ place_window_if_needed (MetaWindow     *window,
       info->fixed_directions = FIXED_DIRECTION_NONE;
     }
 
-  if (window->reparents_pending == 0 && (window->placed || did_placement))
+  if (window->reparents_pending == 0 && window->placed)
     {
       if (window->minimize_after_placement)
         {
