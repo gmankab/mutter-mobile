@@ -251,6 +251,7 @@ enum
   HIGHEST_SCALE_MONITOR_CHANGED,
   CONFIGURE,
   TRANSIENT_FOR_CHANGED,
+  CAN_MAXIMIZE_CHANGED,
 
   LAST_SIGNAL
 };
@@ -834,6 +835,20 @@ meta_window_class_init (MetaWindowClass *klass)
    */
   window_signals[TRANSIENT_FOR_CHANGED] =
     g_signal_new ("transient-for-changed",
+                  G_TYPE_FROM_CLASS (object_class),
+                  G_SIGNAL_RUN_LAST,
+                  0,
+                  NULL, NULL, NULL,
+                  G_TYPE_NONE, 0);
+
+  /**
+   * MetaWindow::can-maximize-changed:
+   * @window: a #MetaWindow
+   *
+   * Emitted when can-maximize of the window has changed.
+   */
+  window_signals[CAN_MAXIMIZE_CHANGED] =
+    g_signal_new ("can-maximize-changed",
                   G_TYPE_FROM_CLASS (object_class),
                   G_SIGNAL_RUN_LAST,
                   0,
@@ -5887,6 +5902,8 @@ meta_window_recalc_features (MetaWindow *window)
   gboolean old_has_resize_func;
   gboolean old_always_sticky;
   gboolean old_skip_taskbar;
+  gboolean old_has_maximize_vert_func;
+  gboolean old_has_maximize_horiz_func;
 
   old_has_close_func = window->has_close_func;
   old_has_minimize_func = window->has_minimize_func;
@@ -5894,6 +5911,8 @@ meta_window_recalc_features (MetaWindow *window)
   old_has_resize_func = window->has_resize_func;
   old_always_sticky = window->always_sticky;
   old_skip_taskbar = window->skip_taskbar;
+  old_has_maximize_vert_func = window->has_maximize_vert_func;
+  old_has_maximize_horiz_func = window->has_maximize_horiz_func;
 
   /* Use MWM hints initially */
   if (window->client_type == META_WINDOW_CLIENT_TYPE_X11)
@@ -6080,6 +6099,10 @@ meta_window_recalc_features (MetaWindow *window)
     g_object_notify_by_pspec (G_OBJECT (window), obj_props[PROP_RESIZEABLE]);
 
   meta_window_frame_size_changed (window);
+
+  if (window->has_maximize_vert_func != old_has_maximize_vert_func ||
+      window->has_maximize_horiz_func != old_has_maximize_horiz_func)
+    g_signal_emit (window, window_signals[CAN_MAXIMIZE_CHANGED], 0);
 }
 
 void
