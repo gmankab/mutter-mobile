@@ -1200,7 +1200,8 @@ meta_window_constructed (GObject *object)
 
   window->has_close_func = TRUE;
   window->has_minimize_func = TRUE;
-  window->has_maximize_func = TRUE;
+  window->has_maximize_vert_func = TRUE;
+  window->has_maximize_horiz_func = TRUE;
   window->has_move_func = TRUE;
   window->has_resize_func = TRUE;
 
@@ -3348,7 +3349,7 @@ meta_window_restore_tile (MetaWindow   *window,
 static gboolean
 meta_window_can_tile_maximized (MetaWindow *window)
 {
-  return window->has_maximize_func;
+  return window->has_maximize_vert_func && window->has_maximize_horiz_func;
 }
 
 gboolean
@@ -4156,8 +4157,8 @@ meta_window_update_monitor (MetaWindow                   *window,
 
       meta_window_main_monitor_changed (window, old);
 
-      /* If we're changing monitors, we need to update the has_maximize_func flag,
-       * as the working area has changed. */
+      /* If we're changing monitors, we need to update the
+       * has_maximize_vert/horiz_func flag, as the working area has changed. */
       meta_window_recalc_features (window);
 
       meta_display_queue_check_fullscreen (window->display);
@@ -5902,7 +5903,8 @@ meta_window_recalc_features (MetaWindow *window)
   window->border_only = window->mwm_border_only;
   window->has_close_func = window->mwm_has_close_func;
   window->has_minimize_func = window->mwm_has_minimize_func;
-  window->has_maximize_func = window->mwm_has_maximize_func;
+  window->has_maximize_vert_func = window->mwm_has_maximize_func;
+  window->has_maximize_horiz_func = window->mwm_has_maximize_func;
   window->has_move_func = window->mwm_has_move_func;
 
   window->has_resize_func = TRUE;
@@ -5966,13 +5968,15 @@ meta_window_recalc_features (MetaWindow *window)
   if (window->type != META_WINDOW_NORMAL)
     {
       window->has_minimize_func = FALSE;
-      window->has_maximize_func = FALSE;
+      window->has_maximize_vert_func = FALSE;
+      window->has_maximize_horiz_func = FALSE;
       window->has_fullscreen_func = FALSE;
     }
 
   if (!window->has_resize_func)
     {
-      window->has_maximize_func = FALSE;
+      window->has_maximize_vert_func = FALSE;
+      window->has_maximize_horiz_func = FALSE;
       MtkRectangle display_rect = { 0 };
 
       meta_display_get_size (window->display, &display_rect.width,
@@ -6001,26 +6005,35 @@ meta_window_recalc_features (MetaWindow *window)
     {
       window->has_move_func = FALSE;
       window->has_resize_func = FALSE;
-      window->has_maximize_func = FALSE;
+      window->has_maximize_vert_func = FALSE;
+      window->has_maximize_horiz_func = FALSE;
     }
 
-  if (window->has_maximize_func && window->monitor)
+  if (window->monitor)
     {
       MtkRectangle work_area, client_rect;
 
       meta_window_get_work_area_current_monitor (window, &work_area);
       meta_window_frame_rect_to_client_rect (window, &work_area, &client_rect);
 
-      if (window->size_hints.min_width > client_rect.width ||
-          window->size_hints.min_height > client_rect.height)
-        window->has_maximize_func = FALSE;
+      if (window->has_maximize_vert_func &&
+          (window->size_hints.min_height > client_rect.height ||
+           window->size_hints.max_height < client_rect.height))
+        window->has_maximize_vert_func = FALSE;
+
+      if (window->has_maximize_horiz_func &&
+          (window->size_hints.min_width > client_rect.width ||
+           window->size_hints.max_width < client_rect.width))
+        window->has_maximize_horiz_func = FALSE;
     }
 
   meta_topic (META_DEBUG_WINDOW_OPS,
-              "Window %s fullscreen = %d not resizable, maximizable = %d fullscreenable = %d min size %dx%d max size %dx%d",
+              "Window %s fullscreen = %d not resizable, maximizable = v:%d,h:%d fullscreenable = %d min size %dx%d max size %dx%d",
               window->desc,
               meta_window_is_fullscreen (window),
-              window->has_maximize_func, window->has_fullscreen_func,
+              window->has_maximize_vert_func,
+              window->has_maximize_horiz_func,
+              window->has_fullscreen_func,
               window->size_hints.min_width,
               window->size_hints.min_height,
               window->size_hints.max_width,
@@ -6034,13 +6047,12 @@ meta_window_recalc_features (MetaWindow *window)
     window->has_minimize_func = FALSE;
 
   meta_topic (META_DEBUG_WINDOW_OPS,
-              "Window %s decorated = %d border_only = %d has_close = %d has_minimize = %d has_maximize = %d has_move = %d skip_taskbar = %d skip_pager = %d",
+              "Window %s decorated = %d border_only = %d has_close = %d has_minimize = %d has_move = %d skip_taskbar = %d skip_pager = %d",
               window->desc,
               window->decorated,
               window->border_only,
               window->has_close_func,
               window->has_minimize_func,
-              window->has_maximize_func,
               window->has_move_func,
               window->skip_taskbar,
               window->skip_pager);
@@ -7812,7 +7824,19 @@ meta_window_handle_ungrabbed_event (MetaWindow         *window,
 gboolean
 meta_window_can_maximize (MetaWindow *window)
 {
-  return window->has_maximize_func;
+  return window->has_maximize_vert_func && window->has_maximize_horiz_func;
+}
+
+gboolean
+meta_window_can_maximize_vertically (MetaWindow *window)
+{
+  return window->has_maximize_vert_func;
+}
+
+gboolean
+meta_window_can_maximize_horizontally (MetaWindow *window)
+{
+  return window->has_maximize_horiz_func;
 }
 
 gboolean

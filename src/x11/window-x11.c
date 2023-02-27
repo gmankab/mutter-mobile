@@ -3389,7 +3389,7 @@ meta_window_x11_client_message (MetaWindow *window,
               second == x11_display->atom__NET_WM_STATE_MAXIMIZED_VERT)
             directions |= META_MAXIMIZE_VERTICAL;
 
-          if (max && window->has_maximize_func)
+          if (max && meta_window_can_maximize (window))
             {
               if (meta_prefs_get_raise_on_click ())
                 meta_window_raise (window);
@@ -4344,7 +4344,7 @@ meta_window_x11_set_allowed_actions_hint (MetaWindow *window)
   /* sticky according to EWMH is different from mutter's sticky;
    * mutter doesn't support EWMH sticky
    */
-  if (window->has_maximize_func)
+  if (meta_window_can_maximize (window))
     {
       data[i] = x11_display->atom__NET_WM_ACTION_MAXIMIZE_HORZ;
       ++i;

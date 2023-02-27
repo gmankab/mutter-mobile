@@ -499,7 +499,8 @@ struct _MetaWindow
   guint always_sticky : 1;
   guint has_close_func : 1;
   guint has_minimize_func : 1;
-  guint has_maximize_func : 1;
+  guint has_maximize_vert_func : 1;
+  guint has_maximize_horiz_func : 1;
   guint has_move_func : 1;
   guint has_resize_func : 1;
   guint has_fullscreen_func : 1;

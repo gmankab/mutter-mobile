@@ -2156,7 +2156,7 @@ handle_toggle_maximized (MetaDisplay           *display,
 {
   if (meta_window_is_maximized (window))
     meta_window_unmaximize (window);
-  else if (window->has_maximize_func)
+  else if (meta_window_can_maximize (window))
     meta_window_maximize (window);
 }
 
@@ -2167,7 +2167,7 @@ handle_maximize (MetaDisplay           *display,
                  MetaKeyBinding        *binding,
                  gpointer               user_data)
 {
-  if (window->has_maximize_func)
+  if (meta_window_can_maximize (window))
     meta_window_maximize (window);
 }
 

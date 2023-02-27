@@ -464,3 +464,9 @@ void meta_window_set_unmaximize_flags (MetaWindow        *window,
 META_EXPORT
 void meta_window_set_can_grab (MetaWindow *window,
                                gboolean    can_grab);
+
+META_EXPORT
+gboolean meta_window_can_maximize_vertically (MetaWindow *window);
+
+META_EXPORT
+gboolean meta_window_can_maximize_horizontally (MetaWindow *window);
