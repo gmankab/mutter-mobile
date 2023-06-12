@@ -1147,6 +1147,7 @@ meta_wayland_xdg_toplevel_reset (MetaWaylandXdgSurface *xdg_surface)
   meta_wayland_shell_surface_destroy_window (shell_surface);
   meta_wayland_actor_surface_reset_actor (META_WAYLAND_ACTOR_SURFACE (surface_role));
   window = meta_window_wayland_new (display_from_surface (surface), surface);
+  meta_window_set_mapped (window, FALSE);
   meta_wayland_shell_surface_set_window (shell_surface, window);
 }
 
@@ -1370,6 +1371,7 @@ finish_popup_setup (MetaWaylandXdgPopup *xdg_popup)
   meta_wayland_shell_surface_destroy_window (shell_surface);
   meta_wayland_actor_surface_reset_actor (META_WAYLAND_ACTOR_SURFACE (surface_role));
   window = meta_window_wayland_new (display_from_surface (surface), surface);
+  meta_window_set_mapped (window, FALSE);
   meta_wayland_shell_surface_set_window (shell_surface, window);
 
   parent_window = meta_wayland_surface_get_window (parent_surface);
@@ -2014,6 +2016,8 @@ meta_wayland_xdg_surface_apply_state (MetaWaylandSurfaceRole  *surface_role,
 
   if (surface->buffer)
     priv->first_buffer_attached = TRUE;
+
+  meta_window_set_mapped (window, surface->buffer != NULL);
 }
 
 static void
