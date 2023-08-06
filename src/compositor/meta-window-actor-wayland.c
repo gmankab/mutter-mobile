@@ -120,7 +120,7 @@ surface_container_apply_transform (ClutterActor      *actor,
 
   parent_class->apply_transform (actor, matrix);
 
-  if (!parent)
+  if (!parent || !META_IS_WINDOW_ACTOR (parent))
     return;
 
   window = meta_window_actor_get_meta_window (META_WINDOW_ACTOR (parent));
