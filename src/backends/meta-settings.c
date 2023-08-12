@@ -319,6 +319,9 @@ experimental_features_handler (GVariant *features_variant,
       features |= feature;
     }
 
+  features |= META_EXPERIMENTAL_FEATURE_SCALE_MONITOR_FRAMEBUFFER;
+  features |= META_EXPERIMENTAL_FEATURE_XWAYLAND_NATIVE_SCALING;
+
   if (features != settings->experimental_features)
     {
       settings->experimental_features = features;
