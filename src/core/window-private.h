@@ -558,6 +558,9 @@ struct _MetaWindow
 
   guint in_workspace_change : 1;
   unsigned int can_grab : 1;
+
+  /* Whether the window surface is mapped. Only used on Wayland */
+  guint is_mapped : 1;
 };
 
 struct _MetaWindowClass
@@ -939,3 +942,5 @@ void meta_window_set_tag (MetaWindow *window,
 
 META_EXPORT_TEST
 GPtrArray * meta_window_get_transient_children (MetaWindow *window);
+
+void meta_window_set_mapped (MetaWindow *window, gboolean is_mapped);
