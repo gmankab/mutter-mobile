@@ -1794,8 +1794,6 @@ end_grab_op (MetaWindowDrag     *window_drag,
   gfloat x, y;
 
   window = window_drag->effective_grab_window;
-  if (!window)
-    return;
 
   clutter_event_get_coords (event, &x, &y);
   modifiers = clutter_event_get_state (event);
