@@ -1169,6 +1169,9 @@ meta_prefs_get_center_new_windows (void)
 gboolean
 meta_prefs_get_attach_modal_dialogs (void)
 {
+  // for mobile we never want to attach modal dialogs, they are maximized anyway...
+  return FALSE;
+
   return attach_modal_dialogs;
 }
 
