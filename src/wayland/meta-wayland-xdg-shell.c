@@ -2095,11 +2095,30 @@ static void
 meta_wayland_xdg_surface_ping (MetaWaylandShellSurface *shell_surface,
                                uint32_t                 serial)
 {
-  MetaWaylandXdgSurface *xdg_surface = META_WAYLAND_XDG_SURFACE (shell_surface);
-  MetaWaylandXdgSurfacePrivate *priv =
-    meta_wayland_xdg_surface_get_instance_private (xdg_surface);
+  MetaWaylandSurfaceRole *surface_role =
+    META_WAYLAND_SURFACE_ROLE (shell_surface);
+  MetaWaylandSurface *surface = meta_wayland_surface_role_get_surface (surface_role);
+  MetaWindow *window = meta_wayland_surface_get_window (surface);
 
-  xdg_wm_base_send_ping (priv->shell_client->resource, serial);
+  if (meta_window_is_alien (window))
+    {
+      MetaContext *context =
+        meta_wayland_compositor_get_context (surface->compositor);
+      MetaDisplay *display = meta_context_get_display (context);
+
+      /* Alien client crashes when receiving pings, so we don't send any and
+       * fake a pong immediately.
+       */
+      meta_display_pong_for_serial (display, serial);
+    }
+  else
+    {
+      MetaWaylandXdgSurface *xdg_surface = META_WAYLAND_XDG_SURFACE (shell_surface);
+      MetaWaylandXdgSurfacePrivate *priv =
+        meta_wayland_xdg_surface_get_instance_private (xdg_surface);
+
+      xdg_wm_base_send_ping (priv->shell_client->resource, serial);
+    }
 }
 
 static void
