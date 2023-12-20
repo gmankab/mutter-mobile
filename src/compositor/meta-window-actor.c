@@ -1301,8 +1301,8 @@ meta_window_actor_set_geometry_scale (MetaWindowActor *window_actor,
   priv->geometry_scale = geometry_scale;
 
   graphene_matrix_init_scale (&child_transform,
-                              geometry_scale,
-                              geometry_scale,
+                              1.f / geometry_scale,
+                              1.f / geometry_scale,
                               1);
   clutter_actor_set_child_transform (CLUTTER_ACTOR (window_actor),
                                      &child_transform);
@@ -1749,10 +1749,10 @@ meta_window_actor_get_image (MetaWindowActor *self,
             meta_window_actor_get_geometry_scale (self);
 
           surface_clip = g_alloca (sizeof (MtkRectangle));
-          surface_clip->x = clip->x / geometry_scale,
-          surface_clip->y = clip->y / geometry_scale;
-          surface_clip->width = clip->width / geometry_scale;
-          surface_clip->height = clip->height / geometry_scale;
+          surface_clip->x = clip->x * geometry_scale,
+          surface_clip->y = clip->y * geometry_scale;
+          surface_clip->width = clip->width * geometry_scale;
+          surface_clip->height = clip->height * geometry_scale;
         }
 
       surface = meta_shaped_texture_get_image (stex, surface_clip);

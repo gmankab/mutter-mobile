@@ -312,8 +312,8 @@ xdg_toplevel_show_window_menu (struct wl_client   *client,
 
   monitor_scale = meta_window_wayland_get_geometry_scale (window);
   meta_window_show_menu (window, META_WINDOW_MENU_WM,
-                         window->buffer_rect.x + (x * monitor_scale),
-                         window->buffer_rect.y + (y * monitor_scale));
+                         window->buffer_rect.x + (x / monitor_scale),
+                         window->buffer_rect.y + (y / monitor_scale));
 }
 
 static void
@@ -888,9 +888,9 @@ meta_wayland_xdg_toplevel_send_configure (MetaWaylandXdgToplevel         *xdg_to
       configuration->bounds_height > 0)
     {
       xdg_toplevel_send_configure_bounds (xdg_toplevel->resource,
-                                          (configuration->bounds_width /
+                                          (configuration->bounds_width *
                                            configuration->scale),
-                                          (configuration->bounds_height /
+                                          (configuration->bounds_height *
                                            configuration->scale));
     }
 
@@ -914,8 +914,8 @@ meta_wayland_xdg_toplevel_send_configure (MetaWaylandXdgToplevel         *xdg_to
     }
 
   xdg_toplevel_send_configure (xdg_toplevel->resource,
-                               configuration->width / configuration->scale,
-                               configuration->height / configuration->scale,
+                               configuration->width * configuration->scale,
+                               configuration->height * configuration->scale,
                                &states);
   wl_array_release (&states);
 
@@ -1262,14 +1262,14 @@ scale_placement_rule (MetaPlacementRule  *placement_rule,
 
   geometry_scale = meta_window_wayland_get_geometry_scale (window);
 
-  placement_rule->anchor_rect.x *= geometry_scale;
-  placement_rule->anchor_rect.y *= geometry_scale;
-  placement_rule->anchor_rect.width *= geometry_scale;
-  placement_rule->anchor_rect.height *= geometry_scale;
-  placement_rule->offset_x *= geometry_scale;
-  placement_rule->offset_y *= geometry_scale;
-  placement_rule->width *= geometry_scale;
-  placement_rule->height *= geometry_scale;
+  placement_rule->anchor_rect.x /= geometry_scale;
+  placement_rule->anchor_rect.y /= geometry_scale;
+  placement_rule->anchor_rect.width /= geometry_scale;
+  placement_rule->anchor_rect.height /= geometry_scale;
+  placement_rule->offset_x /= geometry_scale;
+  placement_rule->offset_y /= geometry_scale;
+  placement_rule->width /= geometry_scale;
+  placement_rule->height /= geometry_scale;
 }
 
 static void
@@ -1638,8 +1638,8 @@ meta_wayland_xdg_popup_configure (MetaWaylandShellSurface        *shell_surface,
     }
 
   geometry_scale = meta_window_wayland_get_geometry_scale (parent_window);
-  x = configuration->rel_x / geometry_scale;
-  y = configuration->rel_y / geometry_scale;
+  x = configuration->rel_x * geometry_scale;
+  y = configuration->rel_y * geometry_scale;
   if (xdg_popup->pending_repositioned)
     {
       xdg_popup_send_repositioned (xdg_popup->resource,
@@ -1648,8 +1648,8 @@ meta_wayland_xdg_popup_configure (MetaWaylandShellSurface        *shell_surface,
     }
   xdg_popup_send_configure (xdg_popup->resource,
                             x, y,
-                            configuration->width / configuration->scale,
-                            configuration->height / configuration->scale);
+                            configuration->width * configuration->scale,
+                            configuration->height * configuration->scale);
 
   meta_wayland_xdg_surface_send_configure (xdg_surface, configuration);
 }
@@ -2525,9 +2525,9 @@ meta_wayland_xdg_positioner_to_placement (MetaWaylandXdgPositioner *xdg_position
               if (configuration->has_size)
                 {
                   parent_rect.width =
-                    configuration->width / configuration->scale;
+                    configuration->width * configuration->scale;
                   parent_rect.height =
-                    configuration->height / configuration->scale;
+                    configuration->height * configuration->scale;
                 }
             }
           else if (xdg_positioner->has_parent_size)

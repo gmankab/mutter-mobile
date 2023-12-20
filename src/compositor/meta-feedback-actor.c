@@ -270,8 +270,8 @@ meta_feedback_actor_set_geometry_scale (MetaFeedbackActor *self,
   priv->geometry_scale = geometry_scale;
 
   graphene_matrix_init_scale (&child_transform,
-                              geometry_scale,
-                              geometry_scale,
+                              1.f / geometry_scale,
+                              1.f / geometry_scale,
                               1);
   clutter_actor_set_child_transform (CLUTTER_ACTOR (self),
                                      &child_transform);

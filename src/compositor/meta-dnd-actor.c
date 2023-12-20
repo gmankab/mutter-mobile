@@ -227,10 +227,10 @@ meta_dnd_actor_drag_finish (MetaDnDActor *self,
           feedback_geometry_scale =
             meta_feedback_actor_get_geometry_scale (META_FEEDBACK_ACTOR (self));
 
-          dest.x += ((self->drag_start_x * origin_geometry_scale) -
-                     (anchor_x * feedback_geometry_scale));
-          dest.y += ((self->drag_start_y * origin_geometry_scale) -
-                     (anchor_y * feedback_geometry_scale));
+          dest.x += ((self->drag_start_x / origin_geometry_scale) -
+                     (anchor_x / feedback_geometry_scale));
+          dest.y += ((self->drag_start_y / origin_geometry_scale) -
+                     (anchor_y / feedback_geometry_scale));
           clutter_actor_set_position (actor, dest.x, dest.y);
         }
 

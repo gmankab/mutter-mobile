@@ -288,8 +288,8 @@ calculate_background_cull_region (MetaWindowActorWayland *self)
   rect = (MtkRectangle) {
     .x = 0,
     .y = 0,
-    .width = (int) (clutter_actor_get_width (self->background) * geometry_scale),
-    .height = (int) (clutter_actor_get_height (self->background) * geometry_scale),
+    .width = (int) clutter_actor_get_width (self->background) / geometry_scale,
+    .height = (int) clutter_actor_get_height (self->background) / geometry_scale,
   };
 
   return mtk_region_create_rectangle (&rect);
@@ -588,8 +588,8 @@ maybe_configure_black_background (MetaWindowActorWayland *self,
   *surfaces_width = max_width;
   *surfaces_height = max_height;
   meta_window_config_get_size (window->config, &width, &height);
-  *background_width = width / geometry_scale;
-  *background_height = height / geometry_scale;
+  *background_width = width * geometry_scale;
+  *background_height = height * geometry_scale;
   return TRUE;
 }
 
@@ -630,8 +630,8 @@ do_sync_geometry (MetaWindowActorWayland *self)
       meta_window_get_buffer_rect (window, &actor_rect);
       geometry_scale =
         meta_window_actor_get_geometry_scale (actor);
-      child_actor_width = actor_rect.width / geometry_scale;
-      child_actor_height = actor_rect.height / geometry_scale;
+      child_actor_width = actor_rect.width * geometry_scale;
+      child_actor_height = actor_rect.height * geometry_scale;
 
       clutter_actor_set_size (self->background,
                               background_width, background_height);
