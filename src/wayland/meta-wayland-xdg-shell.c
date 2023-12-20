@@ -546,6 +546,9 @@ xdg_toplevel_set_minimized (struct wl_client   *client,
   if (!window)
     return;
 
+  if (meta_window_is_alien (window))
+    return;
+
   meta_window_minimize (window);
 }
 
