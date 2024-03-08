@@ -136,6 +136,7 @@ struct _ClutterGesturePrivate
 
   unsigned int latest_index;
 
+  ClutterGestureState last_state;
   ClutterGestureState state;
   ClutterGestureState pending_state;
 
@@ -145,6 +146,7 @@ struct _ClutterGesturePrivate
 
   GPtrArray *cancel_on_recognizing;
   GPtrArray *inhibit_until_cancelled;
+  GPtrArray *inhibit_until_recognize;
 
   GHashTable *can_not_cancel;
   GHashTable *require_failure_of;
@@ -195,8 +197,7 @@ maybe_move_to_waiting (ClutterGesture *self,
 
 static void
 set_state_authoritative (ClutterGesture      *self,
-                         ClutterGestureState  new_state,
-                         unsigned int         recursion_depth);
+                         ClutterGestureState  new_state);
 
 inline void
 debug_message (ClutterGesture *self,
@@ -347,7 +348,7 @@ cancel_sequence (ClutterGesture *self,
    */
   if (priv->sequences->len == 1)
     {
-      set_state_authoritative (self, CLUTTER_GESTURE_STATE_CANCELLED, 0);
+      set_state_authoritative (self, CLUTTER_GESTURE_STATE_CANCELLED);
       goto out;
     }
 
@@ -420,7 +421,7 @@ cancel_all_points (ClutterGesture *self)
    */
   if (n_ended == 0)
     {
-      set_state_authoritative (self, CLUTTER_GESTURE_STATE_CANCELLED, 0);
+      set_state_authoritative (self, CLUTTER_GESTURE_STATE_CANCELLED);
       goto out;
     }
 
@@ -580,7 +581,7 @@ maybe_cancel_independent_gestures (ClutterGesture *self)
           !other_gesture_allowed_to_start (self, other_gesture))
         {
           debug_message (self, "Cancelling independent gesture in POSSIBLE on recognize");
-          set_state_authoritative (other_gesture, CLUTTER_GESTURE_STATE_CANCELLED, 0);
+          set_state_authoritative (other_gesture, CLUTTER_GESTURE_STATE_CANCELLED);
         }
     }
 }
@@ -592,7 +593,6 @@ set_state (ClutterGesture      *self,
 {
   ClutterGesturePrivate *priv = clutter_gesture_get_instance_private (self);
   ClutterGestureState old_state;
-  ClutterGestureClass *gesture_class = CLUTTER_GESTURE_GET_CLASS (self);
 
   if (priv->state == new_state)
     {
@@ -609,8 +609,7 @@ set_state (ClutterGesture      *self,
       g_assert (new_state == CLUTTER_GESTURE_STATE_POSSIBLE);
       break;
     case CLUTTER_GESTURE_STATE_POSSIBLE:
-      g_assert (new_state == CLUTTER_GESTURE_STATE_RECOGNIZE_PENDING ||
-                new_state == CLUTTER_GESTURE_STATE_RECOGNIZING ||
+      g_assert (new_state == CLUTTER_GESTURE_STATE_RECOGNIZING ||
                 new_state == CLUTTER_GESTURE_STATE_COMPLETED ||
                 new_state == CLUTTER_GESTURE_STATE_CANCELLED);
       break;
@@ -667,20 +666,20 @@ set_state (ClutterGesture      *self,
           /* Enforce the inhibition machinery */
           if (priv->inhibited_count > 0)
             {
-              set_state (self, CLUTTER_GESTURE_STATE_RECOGNIZE_PENDING, recursion_depth);
-              return;
+              priv->pending_state = new_state;
+              new_state = CLUTTER_GESTURE_STATE_RECOGNIZE_PENDING;
             }
-
-          priv->pending_state = 0;
-
-          if (!gesture_may_start (self))
+          else
             {
-              set_state_authoritative (self, CLUTTER_GESTURE_STATE_CANCELLED, recursion_depth);
-              return;
+              priv->pending_state = 0;
+
+              if (!gesture_may_start (self))
+                new_state = CLUTTER_GESTURE_STATE_CANCELLED;
             }
         }
     }
 
+  g_assert (priv->last_state == priv->state);
   old_state = priv->state;
 
   if (new_state == CLUTTER_GESTURE_STATE_RECOGNIZING ||
@@ -741,34 +740,78 @@ set_state (ClutterGesture      *self,
 
       g_ptr_array_set_size (priv->cancel_on_recognizing, 0);
       g_ptr_array_set_size (priv->inhibit_until_cancelled, 0);
+      g_ptr_array_set_size (priv->inhibit_until_recognize, 0);
 
       priv->inhibited_count = 0;
     }
 
+  g_assert (priv->state == old_state);
+  priv->last_state = old_state;
   priv->state = new_state;
+
+
+
+
+}
+
+static void
+maybe_influence_other_gestures (ClutterGesture *self,
+                                unsigned int    recursion_depth);
+
+static void
+set_state_after (ClutterGesture *self,
+                 unsigned int    recursion_depth)
+{
+  ClutterGesturePrivate *priv = clutter_gesture_get_instance_private (self);
+  ClutterGestureClass *gesture_class = CLUTTER_GESTURE_GET_CLASS (self);
+  ClutterGestureState old_state, new_state;
+
+  if (priv->last_state == priv->state)
+    return;
+
+  old_state = priv->last_state;
+  new_state = priv->state;
+  priv->last_state = priv->state;
 
   debug_message_recursion (self, recursion_depth,
                            "State change (%s -> %s)",
                            state_to_string[old_state],
                            state_to_string[new_state]);
 
-  if (new_state == CLUTTER_GESTURE_STATE_RECOGNIZING ||
-      (old_state != CLUTTER_GESTURE_STATE_RECOGNIZING &&
-       new_state == CLUTTER_GESTURE_STATE_COMPLETED))
-    g_signal_emit (self, obj_signals[RECOGNIZE], 0);
-
-  if (old_state == CLUTTER_GESTURE_STATE_RECOGNIZING &&
-      new_state == CLUTTER_GESTURE_STATE_COMPLETED)
-    g_signal_emit (self, obj_signals[END], 0);
-
-  if (old_state == CLUTTER_GESTURE_STATE_RECOGNIZING &&
-      new_state == CLUTTER_GESTURE_STATE_CANCELLED)
-    g_signal_emit (self, obj_signals[CANCEL], 0);
-
   if (gesture_class->state_changed)
     gesture_class->state_changed (self, old_state, new_state);
 
+  if (old_state == CLUTTER_GESTURE_STATE_RECOGNIZING &&
+      new_state == CLUTTER_GESTURE_STATE_COMPLETED)
+    {
+      g_signal_emit (self, obj_signals[END], 0);
+    }
+  else if (old_state == CLUTTER_GESTURE_STATE_RECOGNIZING &&
+           new_state == CLUTTER_GESTURE_STATE_CANCELLED)
+    {
+      g_signal_emit (self, obj_signals[CANCEL], 0);
+    }
+  else if (new_state == CLUTTER_GESTURE_STATE_RECOGNIZING ||
+           new_state == CLUTTER_GESTURE_STATE_COMPLETED)
+    {
+      g_signal_emit (self, obj_signals[RECOGNIZE], 0);
+    }
+
+  /* If state has been set recursively by implementation or signal handler, bail out */
+  if (priv->state != new_state)
+    return;
+
   g_object_notify_by_pspec (G_OBJECT (self), obj_props[PROP_STATE]);
+
+  /* If state has been set recursively by notify signal handler, bail out */
+  if (priv->state != new_state)
+    return;
+
+  if (new_state == CLUTTER_GESTURE_STATE_RECOGNIZING ||
+      (old_state != CLUTTER_GESTURE_STATE_RECOGNIZING &&
+       new_state == CLUTTER_GESTURE_STATE_COMPLETED) ||
+      new_state == CLUTTER_GESTURE_STATE_CANCELLED)
+    maybe_influence_other_gestures (self, recursion_depth + 1);
 }
 
 void
@@ -791,17 +834,17 @@ maybe_move_to_waiting (ClutterGesture *self,
     }
 
   set_state (self, CLUTTER_GESTURE_STATE_WAITING, recursion_depth);
+  set_state_after (self, recursion_depth);
 }
 
 static void
 maybe_influence_other_gestures (ClutterGesture *self,
-                                ClutterGestureState for_state,
                                 unsigned int    recursion_depth)
 {
   ClutterGesturePrivate *priv = clutter_gesture_get_instance_private (self);
 
-  if (for_state == CLUTTER_GESTURE_STATE_RECOGNIZING ||
-      for_state == CLUTTER_GESTURE_STATE_COMPLETED)
+  if (priv->state == CLUTTER_GESTURE_STATE_RECOGNIZING ||
+      priv->state == CLUTTER_GESTURE_STATE_COMPLETED)
     {
       unsigned int len, i;
 
@@ -848,6 +891,12 @@ maybe_influence_other_gestures (ClutterGesture *self,
        * gesture is actually part of our primary to-cancel list, we now end
        * up cancelling it right afterwards and it unnecessarily moved into
        * RECOGNIZING.
+
+For cancelling-on-recognize we wanna do all state changes in one step, then all influencing
+in another step (the recognizing gesture wins, it should be able to cancel everyone it
+wants to cancel). The same doesn't hold for recognize-on-cancel, here for the 
+recognizing gesture to win, we need to do influencing in the same step.
+
        */
       for (i = 0; i < len; i++)
         {
@@ -855,13 +904,67 @@ maybe_influence_other_gestures (ClutterGesture *self,
           if (!other_gesture)
             continue;
 
-          maybe_influence_other_gestures (other_gesture,
-                                          CLUTTER_GESTURE_STATE_CANCELLED,
-                                          recursion_depth + 1);
+          set_state_after (other_gesture, recursion_depth);
+          maybe_move_to_waiting (other_gesture, recursion_depth);
+        }
+
+
+
+      len = priv->inhibit_until_recognize->len;
+      priv->inhibit_until_recognize->len = 0;
+
+      for (i = 0; i < len; i++)
+        {
+          ClutterGesture *other_gesture = priv->inhibit_until_recognize->pdata[i];
+          ClutterGesturePrivate *other_priv =
+            clutter_gesture_get_instance_private (other_gesture);
+
+          if (!g_hash_table_contains (priv->in_relationship_with, other_gesture))
+            {
+              debug_message_recursion (other_gesture, recursion_depth,
+                                       "Was already CANCELLED by an influencing before us");
+              continue;
+            }
+
+          g_assert (other_priv->state != CLUTTER_GESTURE_STATE_WAITING);
+
+          if (other_priv->state == CLUTTER_GESTURE_STATE_CANCELLED ||
+              other_priv->state == CLUTTER_GESTURE_STATE_COMPLETED)
+            {
+              debug_message_recursion (other_gesture, recursion_depth,
+                                       "Was already CANCELLED or COMPLETED by an influencing recursed by us");
+              continue;
+            }
+
+          if (uninhibit_gesture (other_gesture))
+            {
+              if (other_priv->pending_state)
+                {
+                  ClutterGestureState pending_state = other_priv->pending_state;
+
+                  set_state (other_gesture, pending_state, recursion_depth);
+                }
+            }
+          else
+            {
+              debug_message_recursion (other_gesture, recursion_depth,
+                                       "Still inhibited");
+            }
+        }
+
+/* For recognize-on-recognize, it's not really a question we can answer,
+so just let the "parent" gesture win */
+      for (i = 0; i < len; i++)
+        {
+          ClutterGesture *other_gesture = priv->inhibit_until_recognize->pdata[i];
+          if (!other_gesture)
+            continue;
+
+          set_state_after (other_gesture, recursion_depth);
           maybe_move_to_waiting (other_gesture, recursion_depth);
         }
     }
-  else if (for_state == CLUTTER_GESTURE_STATE_CANCELLED)
+  else if (priv->state == CLUTTER_GESTURE_STATE_CANCELLED)
     {
       unsigned int len, i;
 
@@ -898,7 +1001,7 @@ maybe_influence_other_gestures (ClutterGesture *self,
                   ClutterGestureState pending_state = other_priv->pending_state;
 
                   set_state (other_gesture, pending_state, recursion_depth);
-                  maybe_influence_other_gestures (other_gesture, pending_state, recursion_depth + 1);
+                  set_state_after (other_gesture, recursion_depth);
                   maybe_move_to_waiting (other_gesture, recursion_depth);
                 }
             }
@@ -913,24 +1016,10 @@ maybe_influence_other_gestures (ClutterGesture *self,
 
 void
 set_state_authoritative (ClutterGesture      *self,
-                         ClutterGestureState  new_state,
-                         unsigned int         recursion_depth)
+                         ClutterGestureState  new_state)
 {
-  ClutterGesturePrivate *priv = clutter_gesture_get_instance_private (self);
-  ClutterGestureState old_state = priv->state;
-
   set_state (self, new_state, 0);
-  if (priv->state == CLUTTER_GESTURE_STATE_RECOGNIZE_PENDING)
-    {
-      priv->pending_state = new_state;
-      return;
-    }
-
-  if (priv->state == CLUTTER_GESTURE_STATE_RECOGNIZING ||
-      (old_state != CLUTTER_GESTURE_STATE_RECOGNIZING &&
-       priv->state == CLUTTER_GESTURE_STATE_COMPLETED) ||
-      priv->state == CLUTTER_GESTURE_STATE_CANCELLED)
-    maybe_influence_other_gestures (self, priv->state, 1);
+  set_state_after (self, 0);
   maybe_move_to_waiting (self, 0);
 }
 
@@ -963,7 +1052,7 @@ clutter_gesture_real_point_ended (ClutterGesture *self,
    * to CANCELLED.
    */
   if (clutter_gesture_get_n_points (self) == 1)
-    set_state_authoritative (self, CLUTTER_GESTURE_STATE_CANCELLED, 0);
+    set_state_authoritative (self, CLUTTER_GESTURE_STATE_CANCELLED);
 }
 
 static void
@@ -971,7 +1060,7 @@ clutter_gesture_real_sequences_cancelled (ClutterGesture *self,
                                           unsigned int   *sequences,
                                           unsigned int    n_sequences)
 {
-  set_state_authoritative (self, CLUTTER_GESTURE_STATE_CANCELLED, 0);
+  set_state_authoritative (self, CLUTTER_GESTURE_STATE_CANCELLED);
 }
 
 static void
@@ -1153,7 +1242,7 @@ clutter_gesture_handle_event (ClutterAction      *action,
                          "Cancelling gesture on first event, another gesture is "
                          "already running");
 
-          set_state_authoritative (self, CLUTTER_GESTURE_STATE_CANCELLED, 0);
+          set_state_authoritative (self, CLUTTER_GESTURE_STATE_CANCELLED);
           return CLUTTER_EVENT_PROPAGATE;
         }
     }
@@ -1196,7 +1285,7 @@ clutter_gesture_handle_event (ClutterAction      *action,
       debug_message (self,
                      "Cancelling other gestures on newly added point automatically");
 
-      maybe_influence_other_gestures (self, priv->state, 1);
+      maybe_influence_other_gestures (self, 1);
     }
 
   return CLUTTER_EVENT_PROPAGATE;
@@ -1250,7 +1339,7 @@ clutter_gesture_register_sequence (ClutterAction      *action,
 
   if (priv->state == CLUTTER_GESTURE_STATE_WAITING)
     {
-      set_state_authoritative (self, CLUTTER_GESTURE_STATE_POSSIBLE, 0);
+      set_state_authoritative (self, CLUTTER_GESTURE_STATE_POSSIBLE);
       g_assert (priv->state == CLUTTER_GESTURE_STATE_POSSIBLE);
     }
 
@@ -1263,7 +1352,8 @@ static void
 setup_influence_on_other_gesture (ClutterGesture *self,
                                   ClutterGesture *other_gesture,
                                   gboolean       *cancel_other_gesture_on_recognizing,
-                                  gboolean       *inhibit_other_gesture_until_cancelled)
+                                  gboolean       *inhibit_other_gesture_until_cancelled,
+                                  gboolean       *inhibit_other_gesture_until_recognize)
 {
   ClutterGesturePrivate *priv = clutter_gesture_get_instance_private (self);
   ClutterGesturePrivate *other_priv = clutter_gesture_get_instance_private (other_gesture);
@@ -1274,14 +1364,15 @@ setup_influence_on_other_gesture (ClutterGesture *self,
    * inhibit anybody.
    */
   gboolean cancel = TRUE;
-  gboolean inhibit = FALSE;
+  gboolean inhibit_until_cancelled = FALSE;
+  gboolean inhibit_until_recognize = FALSE;
 
   /* First check with the implementation specific APIs */
   if (gesture_class->should_influence)
-    gesture_class->should_influence (self, other_gesture, &cancel, &inhibit);
+    gesture_class->should_influence (self, other_gesture, &cancel, &inhibit_until_cancelled, &inhibit_until_recognize);
 
   if (other_gesture_class->should_be_influenced_by)
-    other_gesture_class->should_be_influenced_by (other_gesture, self, &cancel, &inhibit);
+    other_gesture_class->should_be_influenced_by (other_gesture, self, &cancel, &inhibit_until_cancelled, &inhibit_until_recognize);
 
   /* Then apply overrides made using the public methods */
   if (priv->can_not_cancel &&
@@ -1290,10 +1381,11 @@ setup_influence_on_other_gesture (ClutterGesture *self,
 
   if (other_priv->require_failure_of &&
       g_hash_table_contains (other_priv->require_failure_of, self))
-    inhibit = TRUE;
+    inhibit_until_cancelled = TRUE;
 
   *cancel_other_gesture_on_recognizing = cancel;
-  *inhibit_other_gesture_until_cancelled = inhibit;
+  *inhibit_other_gesture_until_cancelled = inhibit_until_cancelled;
+  *inhibit_other_gesture_until_recognize = inhibit_until_recognize;
 }
 
 static int
@@ -1308,8 +1400,8 @@ clutter_gesture_setup_sequence_relationship (ClutterAction *action_1,
   ClutterGesture *gesture_2 = CLUTTER_GESTURE (action_2);
   ClutterGesturePrivate *priv_1 = clutter_gesture_get_instance_private (gesture_1);
   ClutterGesturePrivate *priv_2 = clutter_gesture_get_instance_private (gesture_2);
-  gboolean cancel_1_on_recognizing, inhibit_1_until_cancelled;
-  gboolean cancel_2_on_recognizing, inhibit_2_until_cancelled;
+  gboolean cancel_1_on_recognizing, inhibit_1_until_cancelled, inhibit_1_until_recognize;
+  gboolean cancel_2_on_recognizing, inhibit_2_until_cancelled, inhibit_2_until_recognize;
 
   /* redo relationship() might make us end here */
   if (!get_sequence_data (gesture_1, sprite, NULL) ||
@@ -1339,37 +1431,41 @@ clutter_gesture_setup_sequence_relationship (ClutterAction *action_1,
     {
       cancel_1_on_recognizing = g_ptr_array_find (priv_2->cancel_on_recognizing, gesture_1, NULL);
       inhibit_1_until_cancelled = g_ptr_array_find (priv_2->inhibit_until_cancelled, gesture_1, NULL);
+      inhibit_1_until_recognize = g_ptr_array_find (priv_2->inhibit_until_recognize, gesture_1, NULL);
       cancel_2_on_recognizing = g_ptr_array_find (priv_1->cancel_on_recognizing, gesture_2, NULL);
       inhibit_2_until_cancelled = g_ptr_array_find (priv_1->inhibit_until_cancelled, gesture_2, NULL);
+      inhibit_2_until_recognize = g_ptr_array_find (priv_1->inhibit_until_recognize, gesture_2, NULL);
     }
   else
     {
       setup_influence_on_other_gesture (gesture_1, gesture_2,
-                                        &cancel_2_on_recognizing, &inhibit_2_until_cancelled);
+                                        &cancel_2_on_recognizing, &inhibit_2_until_cancelled, &inhibit_2_until_recognize);
 
       setup_influence_on_other_gesture (gesture_2, gesture_1,
-                                        &cancel_1_on_recognizing, &inhibit_1_until_cancelled);
+                                        &cancel_1_on_recognizing, &inhibit_1_until_cancelled, &inhibit_1_until_recognize);
 
       if (priv_1->state == CLUTTER_GESTURE_STATE_RECOGNIZING)
         {
           // requiring failures is no longer possible for gestures getting added late
           inhibit_2_until_cancelled = FALSE; // no need to inhibit anymore, in theory this failure requirement would have failed
           inhibit_1_until_cancelled = FALSE; // 1 is already recognizing, impossible to inhibit it
+          inhibit_1_until_recognize = FALSE; // 1 is already recognizing, impossible to inhibit it
         }
       else if (priv_2->state == CLUTTER_GESTURE_STATE_RECOGNIZING)
         {
           // requiring failures is no longer possible for gestures getting added late
           inhibit_1_until_cancelled = FALSE; // no need to inhibit anymore
           inhibit_2_until_cancelled = FALSE; // 2 is already recognizing, impossible to inhibit it
+          inhibit_2_until_recognize = FALSE; // 2 is already recognizing, impossible to inhibit it
         }
 
       CLUTTER_NOTE (GESTURES,
                     "Setting up relation between \"<%s> [%p]\" (cancel: %d, "
-                    "inhibit: %d) and \"<%s> [%p]\" (cancel: %d, inhibit: %d)",
+                    "inhibit_until_cancelled=%d, inhibit_until_recognize=%d) and \"<%s> [%p]\" (cancel: %d, inhibit_until_cancelled=%d, inhibit_until_recognize=%d)",
                     clutter_actor_meta_get_name (CLUTTER_ACTOR_META (gesture_1)) ? clutter_actor_meta_get_name (CLUTTER_ACTOR_META (gesture_1)) : G_OBJECT_TYPE_NAME (gesture_1), gesture_1,
-                    cancel_1_on_recognizing, inhibit_1_until_cancelled,
+                    cancel_1_on_recognizing, inhibit_1_until_cancelled, inhibit_1_until_recognize,
                     clutter_actor_meta_get_name (CLUTTER_ACTOR_META (gesture_2)) ? clutter_actor_meta_get_name (CLUTTER_ACTOR_META (gesture_2)) : G_OBJECT_TYPE_NAME (gesture_2), gesture_2,
-                    cancel_2_on_recognizing, inhibit_2_until_cancelled);
+                    cancel_2_on_recognizing, inhibit_2_until_cancelled, inhibit_2_until_recognize);
 
       g_hash_table_add (priv_1->in_relationship_with, g_object_ref (gesture_2));
       g_hash_table_add (priv_2->in_relationship_with, g_object_ref (gesture_1));
@@ -1391,12 +1487,30 @@ clutter_gesture_setup_sequence_relationship (ClutterAction *action_1,
           g_ptr_array_add (priv_2->inhibit_until_cancelled, gesture_1);
           inhibit_gesture (gesture_1);
         }
+
+      if (inhibit_2_until_recognize)
+        {
+          g_ptr_array_add (priv_1->inhibit_until_recognize, gesture_2);
+          inhibit_gesture (gesture_2);
+        }
+
+      if (inhibit_1_until_recognize)
+        {
+          g_ptr_array_add (priv_2->inhibit_until_recognize, gesture_1);
+          inhibit_gesture (gesture_1);
+        }
     }
 
   if (inhibit_2_until_cancelled && !inhibit_1_until_cancelled)
     return -1;
 
   if (!inhibit_2_until_cancelled && inhibit_1_until_cancelled)
+    return 1;
+
+  if (inhibit_2_until_recognize && !inhibit_1_until_recognize)
+    return -1;
+
+  if (!inhibit_2_until_recognize && inhibit_1_until_recognize)
     return 1;
 
   if (cancel_2_on_recognizing && !cancel_1_on_recognizing)
@@ -1522,6 +1636,8 @@ clutter_gesture_finalize (GObject *gobject)
   g_ptr_array_free (priv->cancel_on_recognizing, TRUE);
   g_assert (priv->inhibit_until_cancelled->len == 0);
   g_ptr_array_free (priv->inhibit_until_cancelled, TRUE);
+  g_assert (priv->inhibit_until_recognize->len == 0);
+  g_ptr_array_free (priv->inhibit_until_recognize, TRUE);
 
   if (priv->can_not_cancel)
     destroy_weak_ref_hashtable (priv->can_not_cancel);
@@ -1699,6 +1815,7 @@ clutter_gesture_init (ClutterGesture *self)
 
   priv->latest_index = 0;
 
+  priv->last_state = CLUTTER_GESTURE_STATE_WAITING;
   priv->state = CLUTTER_GESTURE_STATE_WAITING;
   priv->pending_state = 0;
 
@@ -1708,6 +1825,7 @@ clutter_gesture_init (ClutterGesture *self)
 
   priv->cancel_on_recognizing = g_ptr_array_new ();
   priv->inhibit_until_cancelled = g_ptr_array_new ();
+  priv->inhibit_until_recognize = g_ptr_array_new ();
 
   priv->can_not_cancel = NULL;
   priv->require_failure_of = NULL;
@@ -1748,7 +1866,7 @@ clutter_gesture_set_state (ClutterGesture      *self,
        (state == CLUTTER_GESTURE_STATE_COMPLETED ||
         state == CLUTTER_GESTURE_STATE_CANCELLED)))
     {
-      set_state_authoritative (self, state, 0);
+      set_state_authoritative (self, state);
     }
   else
     {
@@ -1789,7 +1907,7 @@ clutter_gesture_reset_state_machine (ClutterGesture *self)
 
   if (priv->state == CLUTTER_GESTURE_STATE_CANCELLED ||
       priv->state == CLUTTER_GESTURE_STATE_COMPLETED)
-    set_state_authoritative (self, CLUTTER_GESTURE_STATE_WAITING, 0);
+    set_state_authoritative (self, CLUTTER_GESTURE_STATE_WAITING);
 }
 
 /**
@@ -2182,12 +2300,14 @@ clutter_gesture_relationships_changed (ClutterGesture *self)
 
       g_ptr_array_remove (other_priv->cancel_on_recognizing, self);
       g_ptr_array_remove (other_priv->inhibit_until_cancelled, self);
+      g_ptr_array_remove (other_priv->inhibit_until_recognize, self);
 
       g_hash_table_iter_remove (&iter);
     }
 
   g_ptr_array_set_size (priv->cancel_on_recognizing, 0);
   g_ptr_array_set_size (priv->inhibit_until_cancelled, 0);
+  g_ptr_array_set_size (priv->inhibit_until_recognize, 0);
 
   priv->inhibited_count = 0;
 
