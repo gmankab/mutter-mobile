@@ -1083,12 +1083,12 @@ gesture_relationship_influencing_cascade_2 (void)
   ClutterGesture *gesture_3 = CLUTTER_GESTURE (g_object_new (TEST_TYPE_GESTURE, "name", "gesture-3", NULL));
   ClutterGesture *gesture_4 = CLUTTER_GESTURE (g_object_new (TEST_TYPE_GESTURE, "name", "gesture-4", NULL));
   gboolean was_updated;
+  ClutterGestureState gesture_1_state, gesture_4_state;
 
   test_gesture_cancel_on_zero_points = FALSE;
 
   virtual_pointer = clutter_seat_create_virtual_device (seat, CLUTTER_POINTER_DEVICE);
   now_us = g_get_monotonic_time ();
-  ClutterGestureState gesture_1_state, gesture_4_state;
 
   g_signal_connect (stage, "after-update", G_CALLBACK (on_after_update),
                     &was_updated);
@@ -1238,6 +1238,8 @@ gesture_relationship_influencing_event_order (void)
   ClutterGesture *gesture_3 = CLUTTER_GESTURE (g_object_new (TEST_TYPE_GESTURE, "name", "gesture-3", NULL));
   gboolean was_updated;
 
+  test_gesture_cancel_on_zero_points = FALSE;
+
   virtual_pointer = clutter_seat_create_virtual_device (seat, CLUTTER_POINTER_DEVICE);
   now_us = g_get_monotonic_time ();
 
@@ -1285,6 +1287,8 @@ gesture_relationship_influencing_event_order (void)
   g_assert_true (clutter_gesture_get_state (gesture_1) == CLUTTER_GESTURE_STATE_WAITING);
   g_assert_true (clutter_gesture_get_state (gesture_2) == CLUTTER_GESTURE_STATE_WAITING);
   g_assert_true (clutter_gesture_get_state (gesture_3) == CLUTTER_GESTURE_STATE_WAITING);
+
+  test_gesture_cancel_on_zero_points = TRUE;
 
   clutter_actor_destroy (second_actor);
 
@@ -1508,6 +1512,8 @@ gesture_relationship_recognize_independently_2 (void)
   ClutterActor *third_actor = clutter_actor_new ();
   gboolean was_updated;
 
+  test_gesture_cancel_on_zero_points = FALSE;
+
   virtual_pointer = clutter_seat_create_virtual_device (seat, CLUTTER_POINTER_DEVICE);
   now_us = g_get_monotonic_time ();
 
@@ -1577,6 +1583,8 @@ gesture_relationship_recognize_independently_2 (void)
   clutter_gesture_set_state (gesture_1, CLUTTER_GESTURE_STATE_COMPLETED);
   g_assert_true (clutter_gesture_get_state (gesture_1) == CLUTTER_GESTURE_STATE_WAITING);
   g_assert_true (clutter_gesture_get_state (gesture_2) == CLUTTER_GESTURE_STATE_WAITING);
+
+  test_gesture_cancel_on_zero_points = TRUE;
 
   clutter_actor_destroy (second_actor);
   clutter_actor_destroy (third_actor);
