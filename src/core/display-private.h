@@ -159,6 +159,8 @@ struct _MetaDisplay
   gchar *saved_clipboard_mimetype;
   MetaSelection *selection;
   GCancellable *saved_clipboard_cancellable;
+
+  gboolean forward_to_wayland_while_grabbed;
 };
 
 struct _MetaDisplayClass

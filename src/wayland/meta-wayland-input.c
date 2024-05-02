@@ -113,6 +113,11 @@ meta_wayland_event_handler_invalidate_focus (MetaWaylandEventHandler *handler,
                                              ClutterFocus            *focus)
 {
   MetaWaylandInput *input = handler->input;
+  MetaWaylandSeat *seat = input->seat;
+  MetaWaylandCompositor *compositor = seat->compositor;
+  MetaContext *context =
+    meta_wayland_compositor_get_context (compositor);
+  MetaDisplay *display = meta_context_get_display (context);
   MetaWaylandSurface *surface = NULL;
 
   if (!focus || !handler->iface->focus)
@@ -123,7 +128,8 @@ meta_wayland_event_handler_invalidate_focus (MetaWaylandEventHandler *handler,
       meta_wayland_input_is_current_handler (input, handler) &&
       /* Stage should either be ungrabbed, or grabbed to self */
       (!clutter_stage_get_grab_actor (input->stage) ||
-       (input->grab && !clutter_grab_is_revoked (input->grab))))
+       (input->grab && !clutter_grab_is_revoked (input->grab)) ||
+       meta_display_get_forward_to_wayland_while_grabbed (display)))
     {
       surface = handler->iface->get_focus_surface (handler, focus,
                                                    handler->user_data);

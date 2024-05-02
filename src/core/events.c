@@ -371,7 +371,12 @@ meta_display_handle_event (MetaDisplay        *display,
     return CLUTTER_EVENT_PROPAGATE;
 
   if (stage_has_grab (display))
-    return CLUTTER_EVENT_PROPAGATE;
+    {
+      if (display->forward_to_wayland_while_grabbed)
+        meta_wayland_compositor_handle_event (wayland_compositor, event);
+
+      return CLUTTER_EVENT_PROPAGATE;
+    }
 
   if (window)
     {

@@ -1091,6 +1091,8 @@ meta_display_new (MetaContext  *context,
 
   display->sound_player = g_object_new (META_TYPE_SOUND_PLAYER, NULL);
 
+  display->forward_to_wayland_while_grabbed = FALSE;
+
   /* Done opening new display */
   display->display_opening = FALSE;
 
@@ -3879,4 +3881,17 @@ meta_display_handle_window_leave (MetaDisplay *display,
 {
   if (window && window->type == META_WINDOW_DOCK && !window->has_focus)
     meta_window_lower (window);
+}
+
+void
+meta_display_set_forward_to_wayland_while_grabbed (MetaDisplay *display,
+                                                   gboolean     forward_to_wayland_while_grabbed)
+{
+  display->forward_to_wayland_while_grabbed = forward_to_wayland_while_grabbed;
+}
+
+gboolean
+meta_display_get_forward_to_wayland_while_grabbed (MetaDisplay *display)
+{
+ return display->forward_to_wayland_while_grabbed;
 }

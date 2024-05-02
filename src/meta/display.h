@@ -287,3 +287,10 @@ void meta_display_set_input_focus   (MetaDisplay *display,
 META_EXPORT
 void meta_display_unset_input_focus (MetaDisplay *display,
                                      guint32      timestamp);
+
+META_EXPORT
+void meta_display_set_forward_to_wayland_while_grabbed (MetaDisplay *display,
+                                                        gboolean     forward_to_wayland_while_grabbed);
+
+META_EXPORT
+gboolean meta_display_get_forward_to_wayland_while_grabbed (MetaDisplay *display);
