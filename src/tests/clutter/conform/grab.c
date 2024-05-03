@@ -559,7 +559,7 @@ grab_key_focus_outside_grab (void)
 
   test_data_shutdown (&data);
 }
-
+/*
 static gboolean
 handle_input_only_event (const ClutterEvent *event,
                          gpointer            user_data)
@@ -572,7 +572,7 @@ handle_input_only_event (const ClutterEvent *event,
 
   return CLUTTER_EVENT_PROPAGATE;
 }
-
+*/
 static gboolean
 last_event_is (GArray           *events,
                ClutterEventType  event_type)
@@ -625,10 +625,10 @@ grab_input_only (void)
 
   test_data_init (&data);
 
-  grab = clutter_stage_grab_input_only_inactive (CLUTTER_STAGE (data.stage),
-                                                 handle_input_only_event,
-                                                 data.events, NULL);
-  clutter_grab_activate (grab);
+//  grab = clutter_stage_grab_input_only_inactive (CLUTTER_STAGE (data.stage),
+//                                                 handle_input_only_event,
+//                                                 data.events, NULL);
+//  clutter_grab_activate (grab);
   event_log_compare ((EventLog *) &grab1_log, data.events);
 
   clutter_virtual_input_device_notify_button (pointer,

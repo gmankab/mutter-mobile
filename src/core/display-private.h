@@ -161,6 +161,7 @@ struct _MetaDisplay
   GCancellable *saved_clipboard_cancellable;
 
   gboolean forward_to_wayland_while_grabbed;
+  ClutterActor *keyboard_box;
 };
 
 struct _MetaDisplayClass

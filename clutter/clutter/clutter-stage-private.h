@@ -137,6 +137,7 @@ void clutter_stage_add_to_redraw_clip (ClutterStage       *self,
 CLUTTER_EXPORT
 ClutterGrab * clutter_stage_grab_input_only_inactive (ClutterStage        *self,
                                                       ClutterEventHandler  handler,
+                                                      ClutterActor        *keyboard_box,
                                                       gpointer             user_data,
                                                       GDestroyNotify       user_data_destroy);
 

@@ -327,11 +327,13 @@ meta_wayland_input_attach_event_handler (MetaWaylandInput                *input,
       MetaWaylandCompositor *compositor = input->seat->compositor;
       MetaContext *context =
         meta_wayland_compositor_get_context (compositor);
+      MetaDisplay *display = meta_context_get_display (context);
       MetaBackend *backend = meta_context_get_backend (context);
       ClutterStage *stage = CLUTTER_STAGE (meta_backend_get_stage (backend));
 
       input->grab = clutter_stage_grab_input_only_inactive (stage,
                                                             grab_handle_event,
+                                                            meta_display_get_keyboard_box (display),
                                                             input,
                                                             NULL);
       clutter_grab_activate (input->grab);

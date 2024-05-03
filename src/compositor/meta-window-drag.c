@@ -2027,6 +2027,7 @@ meta_window_drag_begin (MetaWindowDrag      *window_drag,
       meta_topic (META_DEBUG_WINDOW_OPS, "Creating a new grab.");
       window_drag->grab = clutter_stage_grab_input_only_inactive (stage,
                                                                   handle_drag_event,
+                                                                  meta_display_get_keyboard_box (display),
                                                                   window_drag,
                                                                   NULL);
       clutter_grab_activate (window_drag->grab);

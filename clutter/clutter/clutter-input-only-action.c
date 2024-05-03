@@ -93,7 +93,7 @@ clutter_input_only_action_new (ClutterInputOnlyHandleEvent handle_event,
   input_only_action->user_data = user_data;
   input_only_action->user_data_destroy = user_data_destroy;
   clutter_action_set_phase (CLUTTER_ACTION (input_only_action),
-                            CLUTTER_PHASE_CAPTURE);
+                            CLUTTER_PHASE_BUBBLE);
 
   return input_only_action;
 }

@@ -31,3 +31,6 @@ G_DECLARE_FINAL_TYPE (ClutterInputOnlyActor, clutter_input_only_actor,
 ClutterInputOnlyActor * clutter_input_only_actor_new (ClutterEventHandler event_handler,
                                                       gpointer            user_data,
                                                       GDestroyNotify      destroy);
+
+void clutter_input_only_actor_set_keyboard_box (ClutterInputOnlyActor *self,
+                                            ClutterActor        *keyboard_box);

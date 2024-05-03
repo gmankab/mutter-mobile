@@ -294,3 +294,10 @@ void meta_display_set_forward_to_wayland_while_grabbed (MetaDisplay *display,
 
 META_EXPORT
 gboolean meta_display_get_forward_to_wayland_while_grabbed (MetaDisplay *display);
+
+META_EXPORT
+void meta_display_set_keyboard_box (MetaDisplay  *display,
+                                    ClutterActor *keyboard_box);
+
+META_EXPORT
+ClutterActor * meta_display_get_keyboard_box (MetaDisplay *display);

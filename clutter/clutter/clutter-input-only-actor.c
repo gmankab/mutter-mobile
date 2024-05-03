@@ -28,14 +28,40 @@
 struct _ClutterInputOnlyActor
 {
   ClutterActor parent;
+
+  ClutterActor *keyboard_box;
 };
 
 G_DEFINE_TYPE (ClutterInputOnlyActor, clutter_input_only_actor,
                CLUTTER_TYPE_ACTOR)
 
+static GPtrArray *
+clutter_input_only_actor_collect_event_actors (ClutterActor       *actor,
+                                               ClutterActor       *deepmost,
+                                               const ClutterEvent *for_event)
+{
+ClutterInputOnlyActor *self = CLUTTER_INPUT_ONLY_ACTOR (actor);
+
+  if (self->keyboard_box)
+    {
+      if (clutter_actor_contains (self->keyboard_box, deepmost))
+        {
+          GPtrArray *arr = clutter_actor_get_event_actors (self->keyboard_box, deepmost);
+          g_ptr_array_add (arr, actor);
+          return arr;
+        }
+    }
+
+  return clutter_actor_get_event_actors (actor, deepmost);
+
+}
+
 static void
 clutter_input_only_actor_class_init (ClutterInputOnlyActorClass *klass)
 {
+  ClutterActorClass *actor_class = CLUTTER_ACTOR_CLASS (klass);
+
+  actor_class->collect_event_actors = clutter_input_only_actor_collect_event_actors;
 }
 
 static void
@@ -57,4 +83,11 @@ clutter_input_only_actor_new (ClutterInputOnlyHandleEvent handle_event,
                        "reactive", TRUE,
                        "actions", input_only_action,
                        NULL);
+}
+
+void
+clutter_input_only_actor_set_keyboard_box (ClutterInputOnlyActor *self,
+                                            ClutterActor        *keyboard_box)
+{
+  self->keyboard_box = keyboard_box;
 }

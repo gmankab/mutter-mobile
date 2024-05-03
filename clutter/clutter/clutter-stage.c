@@ -58,6 +58,7 @@
 #include "clutter/clutter-frame.h"
 #include "clutter/clutter-grab-private.h"
 #include "clutter/clutter-input-device-private.h"
+#include "clutter/clutter-input-only-action.h"
 #include "clutter/clutter-input-only-actor.h"
 #include "clutter/clutter-main.h"
 #include "clutter/clutter-marshal.h"
@@ -3163,6 +3164,7 @@ clutter_stage_grab_inactive (ClutterStage *stage,
 ClutterGrab *
 clutter_stage_grab_input_only_inactive (ClutterStage         *stage,
                                         ClutterEventHandler   handler,
+                                        ClutterActor         *keyboard_box,
                                         gpointer              user_data,
                                         GDestroyNotify        user_data_destroy)
 {
@@ -3173,6 +3175,8 @@ clutter_stage_grab_input_only_inactive (ClutterStage         *stage,
                                                    user_data_destroy);
   actor = CLUTTER_ACTOR (input_only_actor);
   clutter_actor_set_name (actor, "input only grab actor");
+
+  clutter_input_only_actor_set_keyboard_box (input_only_actor, keyboard_box);
 
   clutter_actor_insert_child_at_index (CLUTTER_ACTOR (stage), actor, 0);
 

@@ -26,6 +26,7 @@
 #include "clutter/clutter-sprite-private.h"
 
 #include "clutter/clutter-action-private.h"
+#include "clutter/clutter-input-only-action.h"
 #include "clutter/clutter-actor-private.h"
 #include "clutter/clutter-debug.h"
 #include "clutter/clutter-event-private.h"
@@ -984,6 +985,9 @@ clutter_sprite_remove_all_actors_from_chain (ClutterSprite *sprite)
 
       if (receiver->actor)
         receiver->emit_to_actor = FALSE;
+
+      if (receiver->action && CLUTTER_IS_INPUT_ONLY_ACTION (receiver->action))
+        g_clear_object (&receiver->action);
     }
 }
 

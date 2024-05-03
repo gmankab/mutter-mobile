@@ -3895,3 +3895,19 @@ meta_display_get_forward_to_wayland_while_grabbed (MetaDisplay *display)
 {
  return display->forward_to_wayland_while_grabbed;
 }
+
+void
+meta_display_set_keyboard_box (MetaDisplay *display,
+                                                   ClutterActor *keyboard_box)
+{
+  display->keyboard_box = keyboard_box;
+}
+
+/**
+ * meta_display_get_keyboard_box: (skip)
+ */
+ClutterActor *
+meta_display_get_keyboard_box (MetaDisplay *display)
+{
+  return display->keyboard_box;
+}
