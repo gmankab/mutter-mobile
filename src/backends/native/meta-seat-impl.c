@@ -2651,6 +2651,9 @@ process_device_event (MetaSeatImpl          *seat_impl,
         n_fingers = libinput_event_gesture_get_finger_count (gesture_event);
         device = libinput_device_get_user_data (libinput_device);
         time_us = libinput_event_gesture_get_time_usec (gesture_event);
+
+        g_assert (clutter_input_device_get_device_type (device) == CLUTTER_TOUCHPAD_DEVICE);
+
         notify_pinch_gesture_event (device, phase, time_us, 0, 0, 0, 0, 0, 0, n_fingers);
         break;
       }
@@ -2672,6 +2675,8 @@ process_device_event (MetaSeatImpl          *seat_impl,
         dx_unaccel = libinput_event_gesture_get_dx_unaccelerated (gesture_event);
         dy_unaccel = libinput_event_gesture_get_dy_unaccelerated (gesture_event);
 
+        g_assert (clutter_input_device_get_device_type (device) == CLUTTER_TOUCHPAD_DEVICE);
+
         notify_pinch_gesture_event (device,
                                     CLUTTER_TOUCHPAD_GESTURE_PHASE_UPDATE,
                                     time_us, dx, dy, dx_unaccel, dy_unaccel,
@@ -2690,6 +2695,8 @@ process_device_event (MetaSeatImpl          *seat_impl,
         device = libinput_device_get_user_data (libinput_device);
         time_us = libinput_event_gesture_get_time_usec (gesture_event);
         n_fingers = libinput_event_gesture_get_finger_count (gesture_event);
+
+        g_assert (clutter_input_device_get_device_type (device) == CLUTTER_TOUCHPAD_DEVICE);
 
         if (libinput_event_get_type (event) == LIBINPUT_EVENT_GESTURE_SWIPE_BEGIN)
           phase = CLUTTER_TOUCHPAD_GESTURE_PHASE_BEGIN;
@@ -2716,6 +2723,8 @@ process_device_event (MetaSeatImpl          *seat_impl,
         dx_unaccel = libinput_event_gesture_get_dx_unaccelerated (gesture_event);
         dy_unaccel = libinput_event_gesture_get_dy_unaccelerated (gesture_event);
 
+        g_assert (clutter_input_device_get_device_type (device) == CLUTTER_TOUCHPAD_DEVICE);
+
         notify_swipe_gesture_event (device,
                                     CLUTTER_TOUCHPAD_GESTURE_PHASE_UPDATE,
                                     time_us, n_fingers, dx, dy, dx_unaccel, dy_unaccel);
@@ -2733,6 +2742,8 @@ process_device_event (MetaSeatImpl          *seat_impl,
         device = libinput_device_get_user_data (libinput_device);
         time_us = libinput_event_gesture_get_time_usec (gesture_event);
         n_fingers = libinput_event_gesture_get_finger_count (gesture_event);
+
+        g_assert (clutter_input_device_get_device_type (device) == CLUTTER_TOUCHPAD_DEVICE);
 
         if (libinput_event_get_type (event) == LIBINPUT_EVENT_GESTURE_HOLD_BEGIN)
           phase = CLUTTER_TOUCHPAD_GESTURE_PHASE_BEGIN;
