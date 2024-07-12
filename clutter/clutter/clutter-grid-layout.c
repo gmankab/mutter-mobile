@@ -1015,7 +1015,7 @@ clutter_grid_request_allocate (ClutterGridRequest *request,
   gint expand;
   gint i, j;
   RequestedSize *sizes;
-  gint extra;
+  double extra;
   gint rest;
   gint size;
 
@@ -1031,7 +1031,7 @@ clutter_grid_request_allocate (ClutterGridRequest *request,
 
   if (linedata->homogeneous)
     {
-      extra = size / nonempty;
+      extra = (double) size / (double) nonempty;
       rest = size % nonempty;
 
       for (i = 0; i < lines->max - lines->min; i++)
@@ -1040,10 +1040,10 @@ clutter_grid_request_allocate (ClutterGridRequest *request,
           if (line->empty)
             continue;
 
-          line->allocation = extra;
+          line->allocation = (float) extra;
           if (rest > 0)
             {
-              line->allocation += 1;
+           //   line->allocation += 1;
               rest -= 1;
             }
         }
@@ -1092,7 +1092,7 @@ clutter_grid_request_allocate (ClutterGridRequest *request,
           line->allocation = sizes[j].minimum_size;
           if (line->expand)
             {
-              line->allocation += extra;
+              line->allocation += (float) extra;
               if (rest > 0)
                 {
                   line->allocation += 1;
