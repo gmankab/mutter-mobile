@@ -1,0 +1,42 @@
+# See the documentation for more information:
+# https://packit.dev/docs/configuration/
+upstream_package_name: mutter
+downstream_package_name: mutter
+upstream_project_url: https://gitlab.gnome.org/verdre/mutter-mobile
+issue_repository: https://gitlab.gnome.org/verdre/mutter-mobile
+packages:
+  gnome-48-mobile:
+    actions:
+      get-current-version: echo 48^mobile
+      post-upstream-clone:
+        # Use the Fedora 42 specfile
+        - git clone https://src.fedoraproject.org/rpms/mutter .packit_rpm --branch f42 --depth=1
+        - rm -fv .packit_rpm/sources
+    specfile_path: .packit_rpm/mutter.spec
+  mobile-devel:
+    actions:
+      get-current-version: echo 48^mobile-devel
+      post-upstream-clone:
+        # Use the Fedora Rawhide specfile
+        - git clone https://src.fedoraproject.org/rpms/mutter .packit_rpm --branch rawhide --depth=1
+        - rm -fv .packit_rpm/sources
+    specfile_path: .packit_rpm/mutter.spec
+jobs:
+- job: copr_build
+  branch: gnome-48-mobile
+  trigger: commit
+  owner: "@mobility"
+  project: gnome-mobile
+  targets:
+    - fedora-all
+  packages:
+    - gnome-48-mobile
+- job: copr_build
+  branch: mobile
+  trigger: commit
+  owner: "@mobility"
+  project: gnome-mobile
+  targets:
+    - fedora-all
+  packages:
+    - mobile-devel
