@@ -1,5 +1,5 @@
 project('mutter', 'c',
-  version: '49.3',
+  version: '49.mobile.0',
   meson_version: '>= 1.5.0',
   license: 'GPL-2.0-or-later',
 )
@@ -130,7 +130,7 @@ gthread_dep = dependency('gobject-2.0', version: glib_req)
 gtk4_dep = dependency('gtk4', version: gtk4_req, required: false)
 libadwaita_dep = dependency('libadwaita-1', required: false)
 gmodule_no_export_dep = dependency('gmodule-no-export-2.0', version: glib_req)
-gnome_settings_daemon_dep = dependency('gnome-settings-daemon', required: false)
+gnome_settings_daemon_dep = dependency('gnome-settings-daemon', version: '= 49.mobile.0', required: true)
 xkbcommon_dep = dependency('xkbcommon', version: xkbcommon_req)
 atk_dep = dependency('atk', version: atk_req)
 colord_dep = dependency('colord', version: colord_req)
