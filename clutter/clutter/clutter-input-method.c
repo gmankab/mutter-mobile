@@ -36,6 +36,8 @@ struct _ClutterInputMethodPrivate
   ClutterInputContentHintFlags content_hints;
   ClutterInputContentPurpose content_purpose;
   gboolean can_show_preedit;
+
+  MtkRectangle input_rect;
 };
 
 enum
@@ -298,6 +300,47 @@ clutter_input_method_request_surrounding (ClutterInputMethod *im)
   priv = clutter_input_method_get_instance_private (im);
   if (priv->focus)
     clutter_input_focus_request_surrounding (priv->focus);
+}
+
+void
+clutter_input_method_get_input_rect (ClutterInputMethod *im,
+                                     unsigned int       *x_out,
+                                     unsigned int       *y_out,
+                                     unsigned int       *width_out,
+                                     unsigned int       *height_out)
+{
+  ClutterInputMethodPrivate *priv;
+
+  g_return_if_fail (CLUTTER_IS_INPUT_METHOD (im));
+
+  priv = clutter_input_method_get_instance_private (im);
+
+  *x_out = priv->input_rect.x;
+  *y_out = priv->input_rect.y;
+  *width_out = priv->input_rect.width;
+  *height_out = priv->input_rect.height;
+}
+
+void
+clutter_input_method_set_input_rect (ClutterInputMethod *im,
+                                     unsigned int        x,
+                                     unsigned int        y,
+                                     unsigned int        width,
+                                     unsigned int        height)
+{
+  ClutterInputMethodPrivate *priv;
+
+  g_return_if_fail (CLUTTER_IS_INPUT_METHOD (im));
+
+  priv = clutter_input_method_get_instance_private (im);
+
+  priv->input_rect.x = x;
+  priv->input_rect.y = y;
+  priv->input_rect.width = width;
+  priv->input_rect.height = height;
+
+  if (priv->focus)
+    clutter_input_focus_update_input_rect (priv->focus);
 }
 
 /**

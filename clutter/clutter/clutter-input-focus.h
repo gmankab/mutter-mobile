@@ -47,6 +47,8 @@ struct _ClutterInputFocusClass
                              const gchar       *preedit,
                              guint              cursor,
                              guint              anchor);
+
+  void (* update_input_rect) (ClutterInputFocus *focus);
 };
 
 CLUTTER_EXPORT
@@ -83,3 +85,6 @@ void clutter_input_focus_set_can_show_preedit (ClutterInputFocus *focus,
 CLUTTER_EXPORT
 void clutter_input_focus_set_input_panel_state (ClutterInputFocus      *focus,
                                                 ClutterInputPanelState  state);
+
+CLUTTER_EXPORT
+void clutter_input_focus_update_input_rect (ClutterInputFocus *focus);

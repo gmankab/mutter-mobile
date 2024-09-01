@@ -320,6 +320,38 @@ meta_wayland_text_input_focus_set_preedit_text (ClutterInputFocus *focus,
 }
 
 static void
+maybe_send_input_rect (MetaWaylandTextInput *text_input)
+{
+  if (text_input->magic_resource && text_input->surface)
+    {
+      MetaWindow *window = meta_wayland_surface_get_window (text_input->surface);
+      MetaLogicalMonitor *monitor = meta_window_get_main_logical_monitor (window);
+      ClutterInputMethod *input_method =
+        clutter_backend_get_input_method (clutter_get_default_backend ());
+      unsigned int x, y, width, height;
+      unsigned int scale;
+
+      clutter_input_method_get_input_rect (input_method, &x, &y, &width, &height);
+      scale = (int) ceilf (meta_logical_monitor_get_scale (monitor));
+
+      g_autofree char *message =
+        g_strdup_printf ("de9841d2-6324-4681-947b-c7902607e387.set-input-rect %d %d %d %d",
+                         x * scale, y * scale, width * scale, height * scale);
+
+      zwp_text_input_v3_send_commit_string (text_input->magic_resource, message);
+    }
+}
+
+static void
+meta_wayland_text_input_focus_update_input_rect (ClutterInputFocus *focus)
+{
+  MetaWaylandTextInput *text_input =
+    META_WAYLAND_TEXT_INPUT_FOCUS (focus)->text_input;
+
+  maybe_send_input_rect (text_input);
+}
+
+static void
 meta_wayland_text_input_focus_class_init (MetaWaylandTextInputFocusClass *klass)
 {
   ClutterInputFocusClass *focus_class = CLUTTER_INPUT_FOCUS_CLASS (klass);
@@ -328,6 +360,7 @@ meta_wayland_text_input_focus_class_init (MetaWaylandTextInputFocusClass *klass)
   focus_class->delete_surrounding = meta_wayland_text_input_focus_delete_surrounding;
   focus_class->commit_text = meta_wayland_text_input_focus_commit_text;
   focus_class->set_preedit_text = meta_wayland_text_input_focus_set_preedit_text;
+  focus_class->update_input_rect = meta_wayland_text_input_focus_update_input_rect;
 }
 
 static void
@@ -478,6 +511,8 @@ meta_wayland_text_input_set_focus (MetaWaylandTextInput *text_input,
                                      &text_input->resource_list,
                                      wl_resource_get_client (focus_surface_resource));
         }
+
+      maybe_send_input_rect (text_input);
 
       if (!wl_list_empty (&text_input->focus_resource_list))
         {
@@ -634,6 +669,8 @@ text_input_set_surrounding_text (struct wl_client   *client,
        * already claimed the magic resource and is snooping on our text inputs.
        */
       zwp_text_input_v3_send_commit_string (resource, "de9841d2-6324-4681-947b-c7902607e387.magictext-ack");
+
+      maybe_send_input_rect (text_input);
 
       if (client_matches_focus (text_input, client))
         {

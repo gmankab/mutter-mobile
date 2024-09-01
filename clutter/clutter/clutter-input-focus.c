@@ -334,3 +334,12 @@ clutter_input_focus_set_preedit_text (ClutterInputFocus *focus,
   CLUTTER_INPUT_FOCUS_GET_CLASS (focus)->set_preedit_text (focus, preedit,
                                                            cursor, anchor);
 }
+
+void
+clutter_input_focus_update_input_rect (ClutterInputFocus *focus)
+{
+  g_return_if_fail (CLUTTER_IS_INPUT_FOCUS (focus));
+
+  if (CLUTTER_INPUT_FOCUS_GET_CLASS (focus)->update_input_rect)
+    CLUTTER_INPUT_FOCUS_GET_CLASS (focus)->update_input_rect (focus);
+}

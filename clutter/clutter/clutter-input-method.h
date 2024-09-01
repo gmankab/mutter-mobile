@@ -90,3 +90,17 @@ void clutter_input_method_forward_key (ClutterInputMethod *im,
                                        uint32_t            state,
                                        uint64_t            time_,
                                        gboolean            press);
+
+CLUTTER_EXPORT
+void clutter_input_method_set_input_rect (ClutterInputMethod *im,
+                                          unsigned int        x,
+                                          unsigned int        y,
+                                          unsigned int        width,
+                                          unsigned int        height);
+
+CLUTTER_EXPORT
+void clutter_input_method_get_input_rect (ClutterInputMethod *im,
+                                          unsigned int       *x_out,
+                                          unsigned int       *y_out,
+                                          unsigned int       *width_out,
+                                          unsigned int       *height_out);
