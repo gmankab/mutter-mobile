@@ -825,8 +825,7 @@ meta_wayland_text_input_create_new_resource (MetaWaylandTextInput *text_input,
                                   &meta_text_input_interface,
                                   text_input, text_input_destructor);
 
-  if (text_input->surface &&
-      wl_resource_get_client (text_input->surface->resource) == client)
+  if (client_matches_focus (text_input, client))
     {
       wl_list_insert (&text_input->focus_resource_list,
                       wl_resource_get_link (text_input_resource));
