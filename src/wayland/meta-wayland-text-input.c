@@ -95,6 +95,7 @@ struct _MetaWaylandTextInput
   } preedit;
 
   guint done_idle_id;
+  struct wl_resource *magic_resource;
 };
 
 struct _MetaWaylandTextInputFocus
@@ -416,8 +417,14 @@ meta_wayland_text_input_set_focus (MetaWaylandTextInput *text_input,
 
           wl_resource_for_each (resource, &text_input->focus_resource_list)
             {
-              zwp_text_input_v3_send_leave (resource,
-                                            text_input->surface->resource);
+              /* wayland-server doesn't allow sending a enter/leave events with
+               * an entered/left resource that's not of the same client as the
+               * receiving one, so we synthensize it via our text channel.
+               */
+              if (resource == text_input->magic_resource)
+                zwp_text_input_v3_send_commit_string (resource, "de9841d2-6324-4681-947b-c7902607e387.leave");
+              else
+                zwp_text_input_v3_send_leave (resource, text_input->surface->resource);
             }
 
           move_resources (&text_input->resource_list,
@@ -440,23 +447,50 @@ meta_wayland_text_input_set_focus (MetaWaylandTextInput *text_input,
   if (surface && surface->resource)
     {
       struct wl_resource *focus_surface_resource;
+      MetaWindow *window = meta_wayland_surface_get_window (surface);
+      struct wl_resource *resource;
+      gboolean surface_has_its_own_client = FALSE;
 
       text_input->surface = surface;
       focus_surface_resource = text_input->surface->resource;
       wl_resource_add_destroy_listener (focus_surface_resource,
                                         &text_input->surface_listener);
 
-      move_resources_for_client (&text_input->focus_resource_list,
-                                 &text_input->resource_list,
-                                 wl_resource_get_client (focus_surface_resource));
+      wl_resource_for_each (resource, &text_input->resource_list)
+        {
+          if (wl_resource_get_client (resource) == wl_resource_get_client (text_input->surface->resource))
+            {
+              surface_has_its_own_client = TRUE;
+              break;
+            }
+        }
+
+      if (text_input->magic_resource && window && meta_window_is_alien (window) && !surface_has_its_own_client)
+        {
+          g_warning ("Alien window focused and magic_resource present, adding magic resource to focus list");
+          move_resources_for_client (&text_input->focus_resource_list,
+                                     &text_input->resource_list,
+                                     wl_resource_get_client (text_input->magic_resource));
+        }
+      else
+        {
+          move_resources_for_client (&text_input->focus_resource_list,
+                                     &text_input->resource_list,
+                                     wl_resource_get_client (focus_surface_resource));
+        }
 
       if (!wl_list_empty (&text_input->focus_resource_list))
         {
-          struct wl_resource *resource;
-
           wl_resource_for_each (resource, &text_input->focus_resource_list)
             {
-              zwp_text_input_v3_send_enter (resource, surface->resource);
+              /* wayland-server doesn't allow sending a enter/leave events with
+               * an entered/left resource that's not of the same client as the
+               * receiving one, so we synthensize it via our text channel.
+               */
+              if (resource == text_input->magic_resource)
+                zwp_text_input_v3_send_commit_string (resource, "de9841d2-6324-4681-947b-c7902607e387.enter");
+              else
+                zwp_text_input_v3_send_enter (resource, surface->resource);
             }
         }
     }
@@ -470,6 +504,21 @@ text_input_destructor (struct wl_resource *resource)
   g_hash_table_remove (text_input->resource_serials, resource);
   wl_list_remove (wl_resource_get_link (resource));
   reset_text_input_focus (text_input);
+
+  /* We unset the magic resource and allow setting it again in case the magic
+   * client goes away. This is so that the magic client can recover from crashes.
+   * There's a risk that someone kills the magic client and then registers their
+   * own magic client, but we assume that the ability to kill the magic client
+   * means the system is compromised anyway.
+   *
+   * FIXME: we probably want to only allow setting the magic resource a single
+   * time, but for that, the proxy needs to be more stable..
+   */
+  if (text_input->magic_resource == resource)
+    {
+      g_warning ("The magic resource got destroyed, unsetting it");
+      text_input->magic_resource = NULL;
+    }
 }
 
 static void
@@ -485,6 +534,44 @@ client_matches_focus (MetaWaylandTextInput *text_input,
 {
   if (!text_input->surface)
     return FALSE;
+
+  if (text_input->magic_resource &&
+      client == wl_resource_get_client (text_input->magic_resource))
+    {
+      struct wl_resource *resource;
+      gboolean surface_has_its_own_client = FALSE;
+      MetaWindow *window = meta_wayland_surface_get_window (text_input->surface);
+
+      wl_resource_for_each (resource, &text_input->resource_list)
+        {
+          if (wl_resource_get_client (resource) == wl_resource_get_client (text_input->surface->resource))
+            {
+              surface_has_its_own_client = TRUE;
+              break;
+            }
+        }
+
+      /* Request is coming from our grab-all-input client. There's no way we
+       * can authenticate that this client is legit, so we want to restrict the
+       * windows the client can act for to only alien windows. For that we check
+       * for "alien_" wm_class prefix, and whether the window has no text_input
+       * resource of itself (because for the alien client we disallow the
+       * text_input protocol on the wayland-server level).
+       */
+      if (window && meta_window_is_alien (window) && !surface_has_its_own_client)
+        {
+          g_warning ("Allowing a text_input request from magic resource because current surface is an alien window");
+          return TRUE;
+        }
+
+      g_warning ("Disallowing a text_input request from magic resource, "
+                 "window=%p window_is_alien=%d surface_has_its_own_client=%d",
+                 window,
+                 window && meta_window_is_alien (window),
+                 surface_has_its_own_client);
+      return FALSE;
+    }
+
 
   return client == wl_resource_get_client (text_input->surface->resource);
 }
@@ -524,6 +611,47 @@ text_input_set_surrounding_text (struct wl_client   *client,
 {
   MetaWaylandTextInput *text_input = wl_resource_get_user_data (resource);
   size_t text_len = strlen (text);
+
+  if (g_strcmp0 (text, "de9841d2-6324-4681-947b-c7902607e387.magictext-req") == 0)
+    {
+      g_warning ("text_input: received the magic text from client zwp_text_input@%d", wl_resource_get_id (resource));
+
+      /* Only allow setting the magic resource a single time in the compositors
+       * lifetime. This is critical to ensure that *only* our own shim gets
+       * access to text input for alien windows.
+       */
+      if (text_input->magic_resource)
+        {
+          g_warning ("There already is a magic resource present, discarding the event");
+          return;
+        }
+
+      text_input->magic_resource = resource;
+
+      /* Immediately send back a delete_surrounding_text event to confirm that
+       * setting the magic resource worked. This is critical, if the shim doesn't
+       * receive this event immediately afterwards, it assumes that somebody else
+       * already claimed the magic resource and is snooping on our text inputs.
+       */
+      zwp_text_input_v3_send_commit_string (resource, "de9841d2-6324-4681-947b-c7902607e387.magictext-ack");
+
+      if (client_matches_focus (text_input, client))
+        {
+          g_warning ("Alien window is already focused, inserting magic client "
+                     "into focus list and sending enter event");
+
+          g_assert (wl_list_empty (&text_input->focus_resource_list));
+
+          wl_list_remove (wl_resource_get_link (text_input->magic_resource));
+          wl_list_insert (&text_input->focus_resource_list,
+                          wl_resource_get_link (resource));
+
+          /* Send our synthesized enter event */
+          zwp_text_input_v3_send_commit_string (resource, "de9841d2-6324-4681-947b-c7902607e387.enter");
+        }
+
+      return;
+    }
 
   if (!client_matches_focus (text_input, client))
     return;
