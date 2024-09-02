@@ -470,3 +470,6 @@ gboolean meta_window_can_maximize_vertically (MetaWindow *window);
 
 META_EXPORT
 gboolean meta_window_can_maximize_horizontally (MetaWindow *window);
+
+META_EXPORT
+gboolean meta_window_is_alien (MetaWindow *window);

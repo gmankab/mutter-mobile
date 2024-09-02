@@ -8798,3 +8798,25 @@ meta_window_set_can_grab (MetaWindow *window,
       meta_window_drag_end (window_drag);
     }
 }
+
+gboolean
+meta_window_is_alien (MetaWindow *window)
+{
+  pid_t pid;
+  g_autofree char *cgroup = NULL;
+
+  g_return_val_if_fail (META_IS_WINDOW (window), FALSE);
+
+  pid = meta_window_get_pid (window);
+
+  if (pid < 1)
+    return FALSE;
+
+  if (sd_pid_get_cgroup (pid, &cgroup) < 0)
+    return FALSE;
+
+  if (g_str_has_prefix (cgroup, "/lxc.payload.aliendalvik"))
+    return TRUE;
+
+  return FALSE;
+}
