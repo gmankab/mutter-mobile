@@ -547,7 +547,15 @@ xdg_toplevel_set_minimized (struct wl_client   *client,
     return;
 
   if (meta_window_is_alien (window))
-    return;
+    {
+      MetaDisplay *display = display_from_surface (surface);
+      MetaContext *context = meta_display_get_context (display);
+      MetaWaylandCompositor *wayland_compositor =
+        meta_context_get_wayland_compositor (context);
+
+      meta_wayland_compositor_send_kbd_leave_enter (wayland_compositor, surface);
+      return;
+    }
 
   meta_window_minimize (window);
 }

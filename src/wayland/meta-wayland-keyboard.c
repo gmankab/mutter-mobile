@@ -89,6 +89,8 @@ struct _MetaWaylandKeyboard
 
   MetaWaylandXkbInfo xkb_info;
   GSettings *settings;
+
+  int leave_enter_idle_id;
 };
 
 G_DEFINE_TYPE (MetaWaylandKeyboard, meta_wayland_keyboard,
@@ -707,6 +709,56 @@ broadcast_focus (MetaWaylandKeyboard *keyboard,
                           &keyboard->pressed_keys);
 
   keyboard_send_modifiers (keyboard, resource, keyboard->focus_serial);
+}
+
+typedef struct
+{
+  MetaWaylandKeyboard *keyboard;
+  MetaWaylandSurface *surface;
+  int n_calls;
+} LeaveEnterData;
+
+static gboolean
+leave_enter_idle_cb (gpointer user_data)
+{
+  LeaveEnterData *data = user_data;
+  MetaWaylandKeyboard *keyboard = data->keyboard;
+  struct wl_resource *resource;
+
+  wl_resource_for_each (resource, &keyboard->focus_resource_list)
+    broadcast_focus (keyboard, resource);
+
+  if (data->n_calls < 50)
+    {
+      data->n_calls++;
+      return G_SOURCE_CONTINUE;
+    }
+  else
+    {
+      keyboard->leave_enter_idle_id = 0;
+      return G_SOURCE_REMOVE;
+    }
+}
+
+void
+meta_wayland_keyboard_send_leave_enter (MetaWaylandKeyboard *keyboard,
+                                        MetaWaylandSurface  *surface)
+{
+  LeaveEnterData *data;
+
+  if (keyboard->leave_enter_idle_id > 0)
+    g_source_remove (keyboard->leave_enter_idle_id);
+
+  data = g_new0 (LeaveEnterData, 1);
+  data->keyboard = keyboard;
+  data->surface = surface;
+
+  keyboard->leave_enter_idle_id =
+    g_timeout_add_full (G_PRIORITY_DEFAULT_IDLE,
+                        100,
+                        leave_enter_idle_cb,
+                        data,
+                        g_free);
 }
 
 void

@@ -121,3 +121,6 @@ meta_wayland_compositor_serial_is_later (uint32_t serial1,
 {
   return serial1 - serial2 < UINT32_MAX / 2;
 }
+
+void meta_wayland_compositor_send_kbd_leave_enter (MetaWaylandCompositor *compositor,
+                                                   MetaWaylandSurface    *surface);

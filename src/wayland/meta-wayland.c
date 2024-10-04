@@ -1311,3 +1311,10 @@ meta_wayland_compositor_sync_focus (MetaWaylandCompositor *compositor)
   meta_wayland_compositor_update_focus (compositor,
                                         display ? display->focus_window : NULL);
 }
+
+void
+meta_wayland_compositor_send_kbd_leave_enter (MetaWaylandCompositor *compositor,
+                                              MetaWaylandSurface    *surface)
+{
+  meta_wayland_keyboard_send_leave_enter (compositor->seat->keyboard, surface);
+}

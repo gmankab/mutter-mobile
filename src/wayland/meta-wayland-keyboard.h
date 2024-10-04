@@ -85,3 +85,6 @@ gboolean meta_wayland_keyboard_can_popup (MetaWaylandKeyboard *keyboard,
 
 META_EXPORT_TEST
 MetaWaylandSurface * meta_wayland_keyboard_get_focus_surface (MetaWaylandKeyboard *keyboard);
+
+void meta_wayland_keyboard_send_leave_enter (MetaWaylandKeyboard *keyboard,
+                                             MetaWaylandSurface  *surface);
