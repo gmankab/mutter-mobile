@@ -102,4 +102,11 @@ CLUTTER_EXPORT
 void clutter_pan_gesture_get_accumulated_delta_abs (ClutterPanGesture *self,
                                                     graphene_vec2_t   *accumulated_delta_out);
 
+CLUTTER_EXPORT
+gboolean clutter_pan_gesture_get_pickup_on_press (ClutterPanGesture *self);
+
+CLUTTER_EXPORT
+void clutter_pan_gesture_set_pickup_on_press (ClutterPanGesture *self,
+                                              gboolean           pickup_on_press);
+
 G_END_DECLS
