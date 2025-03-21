@@ -1171,7 +1171,6 @@ buffer_params_create_common (struct wl_client   *client,
   MetaWaylandBuffer *buffer;
   struct wl_resource *buffer_resource;
   GError *error = NULL;
-  int corrected_stride;
 
   dma_buf = wl_resource_get_user_data (params_resource);
   if (!dma_buf)
@@ -1212,13 +1211,6 @@ buffer_params_create_common (struct wl_client   *client,
   dma_buf->drm_format = drm_format;
   dma_buf->is_y_inverted = !(flags & ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_Y_INVERT);
 
-  corrected_stride = (int) (128.f * (ceilf ((float) (dma_buf->width * 4) / 128.f)));
-  if (dma_buf->strides[0] != corrected_stride)
-    {
-      g_warning("DMABuf stride of %d corrected to %d", dma_buf->strides[0], corrected_stride);
-      dma_buf->strides[0] = corrected_stride;
-    }
-
   if (flags & ~ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_Y_INVERT)
     {
       wl_resource_post_error (params_resource,
@@ -1243,7 +1235,6 @@ buffer_params_create_common (struct wl_client   *client,
     {
       if (buffer_id == 0)
         {
-          g_warning("Failed to realize dmabuf texture: %s", error ? error->message : "unknown error");
           zwp_linux_buffer_params_v1_send_failed (params_resource);
         }
       else
