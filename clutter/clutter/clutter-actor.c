@@ -9559,6 +9559,14 @@ clutter_actor_get_transformed_extents (ClutterActor    *self,
   graphene_point3d_t v[4];
   ClutterActorBox box;
 
+  if (!clutter_actor_box_is_initialized (&self->priv->allocation))
+    {
+      if (rect)
+        *rect = GRAPHENE_RECT_INIT_ZERO;
+
+      return;
+    }
+
   box.x1 = 0;
   box.y1 = 0;
   box.x2 = clutter_actor_box_get_width (&self->priv->allocation);
@@ -9573,6 +9581,11 @@ clutter_actor_get_transformed_extents (ClutterActor    *self,
 
       if (rect)
         graphene_quad_bounds (&quad, rect);
+    }
+  else
+    {
+      if (rect)
+        *rect = GRAPHENE_RECT_INIT_ZERO;
     }
 }
 
