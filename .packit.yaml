@@ -17,6 +17,9 @@ packages:
         # Use the Fedora 42 specfile
         - rm -rf .packit_rpm
         - git clone https://src.fedoraproject.org/rpms/mutter .packit_rpm --branch f42 --depth=1
+        # Fix build deps
+        - "sed -i 's/BuildRequires: pkgconfig(gnome-settings-daemon)/BuildRequires: pkgconfig(gnome-settings-daemon) = 48.mobile.0/' .packit_rpm/mutter.spec"
+        - "sed -i 's/Requires: gnome-settings-daemon/Requires: gnome-settings-daemon = 48^mobile/' .packit_rpm/mutter.spec"
         - rm -fv .packit_rpm/sources
     specfile_path: .packit_rpm/mutter.spec
   mobile-devel:
@@ -27,6 +30,9 @@ packages:
         # Use the Fedora Rawhide specfile
         - rm -rf .packit_rpm
         - git clone https://src.fedoraproject.org/rpms/mutter .packit_rpm --branch rawhide --depth=1
+        # Fix build deps
+        - "sed -i 's/BuildRequires: pkgconfig(gnome-settings-daemon)/BuildRequires: pkgconfig(gnome-settings-daemon) = 48.mobile.0/' .packit_rpm/mutter.spec"
+        - "sed -i 's/Requires: gnome-settings-daemon/Requires: gnome-settings-daemon = 48^mobile.devel/' .packit_rpm/mutter.spec"
         - rm -fv .packit_rpm/sources
     specfile_path: .packit_rpm/mutter.spec
 jobs:
