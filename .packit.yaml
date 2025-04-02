@@ -8,6 +8,11 @@ packages:
   gnome-48-mobile:
     actions:
       get-current-version: echo 48^mobile
+      create-archive: &archive
+        # Create archive
+        - meson subprojects download
+        - bash -c 'tar -zvcf .packit_rpm/${PACKIT_PROJECT_NAME_VERSION}.tar.gz --exclude "*.rpm" --exclude .packit_rpm --exclude .git --transform "s|^|${PACKIT_PROJECT_NAME_VERSION}/|" .'
+        - bash -c 'echo ".packit_rpm/${PACKIT_PROJECT_NAME_VERSION}.tar.gz"'
       post-upstream-clone:
         # Use the Fedora 42 specfile
         - rm -rf .packit_rpm
@@ -17,6 +22,7 @@ packages:
   mobile-devel:
     actions:
       get-current-version: echo 48^mobile-devel
+      create-archive: *archive
       post-upstream-clone:
         # Use the Fedora Rawhide specfile
         - rm -rf .packit_rpm
