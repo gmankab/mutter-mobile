@@ -10,3 +10,5 @@ runtime-dir
 build
 _build
 builddir
+*.rpm
+.packit_rpm/
