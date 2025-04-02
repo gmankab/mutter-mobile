@@ -10,6 +10,7 @@ packages:
       get-current-version: echo 48^mobile
       post-upstream-clone:
         # Use the Fedora 42 specfile
+        - rm -rf .packit_rpm
         - git clone https://src.fedoraproject.org/rpms/mutter .packit_rpm --branch f42 --depth=1
         - rm -fv .packit_rpm/sources
     specfile_path: .packit_rpm/mutter.spec
@@ -18,6 +19,7 @@ packages:
       get-current-version: echo 48^mobile-devel
       post-upstream-clone:
         # Use the Fedora Rawhide specfile
+        - rm -rf .packit_rpm
         - git clone https://src.fedoraproject.org/rpms/mutter .packit_rpm --branch rawhide --depth=1
         - rm -fv .packit_rpm/sources
     specfile_path: .packit_rpm/mutter.spec
