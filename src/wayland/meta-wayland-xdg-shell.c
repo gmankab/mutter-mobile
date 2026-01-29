@@ -727,8 +727,6 @@ fill_states (MetaWaylandXdgToplevel         *xdg_toplevel,
   MetaWaylandSurface *surface =
     meta_wayland_surface_role_get_surface (surface_role);
   MetaWindow *window = meta_wayland_surface_get_window (surface);
-  if (!window)
-    return;
   MetaWindowDrag *window_drag;
 
   window_drag =
