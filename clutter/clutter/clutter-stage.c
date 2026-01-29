@@ -850,7 +850,7 @@ _clutter_stage_process_queued_events (ClutterStage *stage)
                 }
 
               goto next_event;
-            }
+            }/*
           else if (clutter_event_type (event) == CLUTTER_TOUCH_UPDATE &&
                    clutter_event_type (next_event) == CLUTTER_TOUCH_UPDATE &&
                    clutter_event_get_event_sequence (event) ==
@@ -862,7 +862,7 @@ _clutter_stage_process_queued_events (ClutterStage *stage)
                             (int) x,
                             (int) y);
               goto next_event;
-            }
+            }*/
         }
 
       clutter_stage_process_event (stage, event);
