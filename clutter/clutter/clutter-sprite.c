@@ -415,9 +415,6 @@ clutter_sprite_finalize (GObject *object)
   ClutterSprite *sprite = CLUTTER_SPRITE (object);
   ClutterSpritePrivate *priv = clutter_sprite_get_instance_private (sprite);
 
-  release_implicit_grab (sprite);
-  cleanup_implicit_grab (sprite);
-
   if (priv->current_actor)
     {
       _clutter_actor_set_has_pointer (priv->current_actor, FALSE);
@@ -769,7 +766,7 @@ clutter_sprite_propagate_event (ClutterFocus       *focus,
   ClutterSpritePrivate *priv = clutter_sprite_get_instance_private (sprite);
   ClutterStage *stage = clutter_focus_get_stage (focus);
   ClutterActor *target_actor = NULL, *seat_grab_actor = NULL;
-  gboolean is_sequence_begin;
+  gboolean is_sequence_begin, is_sequence_end;
   ClutterEventType event_type;
 
   event_type = clutter_event_type (event);
@@ -842,6 +839,9 @@ clutter_sprite_propagate_event (ClutterFocus       *focus,
 
   is_sequence_begin =
     event_type == CLUTTER_BUTTON_PRESS || event_type == CLUTTER_TOUCH_BEGIN;
+  is_sequence_end =
+    event_type == CLUTTER_BUTTON_RELEASE || event_type == CLUTTER_TOUCH_END ||
+    event_type == CLUTTER_TOUCH_CANCEL;
 
   if (is_sequence_begin && setup_implicit_grab (sprite))
     {
@@ -873,12 +873,12 @@ clutter_sprite_propagate_event (ClutterFocus       *focus,
       g_array_remove_range (priv->cur_event_emission_chain, 0, priv->cur_event_emission_chain->len);
     }
 
-  // for button presses, we release the implicit grab here, for touch sequences,
-  // we release it when finalizing the sprite
-  if (event_type == CLUTTER_BUTTON_RELEASE && release_implicit_grab (sprite))
+  if (is_sequence_end && release_implicit_grab (sprite))
     {
       /* Sync crossings after the implicit grab for mice */
-      sync_crossings_on_implicit_grab_end (sprite);
+      if (event_type == CLUTTER_BUTTON_RELEASE)
+        sync_crossings_on_implicit_grab_end (sprite);
+
       cleanup_implicit_grab (sprite);
     }
 }
