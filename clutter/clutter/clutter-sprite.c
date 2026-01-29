@@ -130,16 +130,8 @@ cleanup_implicit_grab (ClutterSprite *sprite)
 {
   ClutterSpritePrivate *priv = clutter_sprite_get_instance_private (sprite);
 
+  clutter_actor_set_implicitly_grabbed (priv->implicit_grab_actor, FALSE);
   priv->implicit_grab_actor = NULL;
-int i;
-  for (i = 0; i < priv->event_emission_chain->len; i++)
-    {
-      EventReceiver *receiver =
-        &g_array_index (priv->event_emission_chain, EventReceiver, i);
-
-      if (receiver->actor)
-        clutter_actor_set_implicitly_grabbed (receiver->actor, FALSE);
-    }
 
   g_array_remove_range (priv->event_emission_chain, 0,
                         priv->event_emission_chain->len);
@@ -231,34 +223,6 @@ sync_crossings_on_implicit_grab_end (ClutterSprite *sprite)
 
   if (!priv->current_actor)
     return;
-
-   deepmost = priv->current_actor;
-
-  // fixme: this is shit, we want ENTER events after the implicit grab go
-  // to all actors between the stage and the current_actor that were *not*
-  // part of the implicit grab. Just emitting to all of them will emit
-  // multiple times to a few actors
-  topmost = clutter_actor_get_stage (deepmost);
-
-  crossing = clutter_event_crossing_new (CLUTTER_ENTER,
-                                         CLUTTER_EVENT_FLAG_GRAB_NOTIFY,
-                                         CLUTTER_CURRENT_TIME,
-                                         priv->device,
-                                         priv->sequence,
-                                         priv->coords,
-                                         priv->current_actor,
-                                         NULL);
-
-  if (!_clutter_event_process_filters (crossing, deepmost))
-    {
-      clutter_sprite_emit_crossing_event (sprite,
-                                         crossing,
-                                         deepmost,
-                                         topmost);
-    }
-return;
-
-
   if (clutter_actor_contains (priv->current_actor, priv->implicit_grab_actor))
     return;
 
@@ -383,8 +347,7 @@ create_event_emission_chain (ClutterSprite *sprite,
                              GArray        *chain,
                              ClutterActor  *topmost,
                              ClutterActor  *deepmost,
-                             const ClutterEvent *event,
-gboolean add)
+                             const ClutterEvent *event)
 {
   ClutterSpritePrivate *priv = clutter_sprite_get_instance_private (sprite);
   int i;
@@ -396,9 +359,6 @@ gboolean add)
     {
       ClutterActor *actor = g_ptr_array_index (priv->cur_event_actors, i);
       const GList *l;
-
-      if (add)
-        clutter_actor_set_implicitly_grabbed (actor, TRUE);
 
       for (l = clutter_actor_peek_actions (actor); l; l = l->next)
         {
@@ -416,9 +376,6 @@ gboolean add)
     {
       ClutterActor *actor = g_ptr_array_index (priv->cur_event_actors, i);
       const GList *l;
-
-      if (add)
-        clutter_actor_set_implicitly_grabbed (actor, TRUE);
 
       for (l = clutter_actor_peek_actions (actor); l; l = l->next)
         {
@@ -775,11 +732,9 @@ clutter_sprite_notify_grab (ClutterFocus *focus,
     {
       ClutterEvent *event;
 
-//      if (priv->implicit_grab_actor)
-  //      deepmost = find_common_root_actor (clutter_focus_get_stage (CLUTTER_FOCUS (sprite)),
-    //                                       priv->implicit_grab_actor, deepmost);
-
-      // FIXME: now that the above is commented out, we might emit events wrongly, NOOO Idea how lol
+      if (priv->implicit_grab_actor)
+        deepmost = find_common_root_actor (clutter_focus_get_stage (CLUTTER_FOCUS (sprite)),
+                                           priv->implicit_grab_actor, deepmost);
 
       event = clutter_event_crossing_new (event_type,
                                           CLUTTER_EVENT_FLAG_GRAB_NOTIFY,
@@ -892,8 +847,9 @@ clutter_sprite_propagate_event (ClutterFocus       *focus,
     {
       g_assert (priv->implicit_grab_actor == NULL);
       priv->implicit_grab_actor = target_actor;
+      clutter_actor_set_implicitly_grabbed (priv->implicit_grab_actor, TRUE);
 
-      create_event_emission_chain (sprite, priv->event_emission_chain, seat_grab_actor, target_actor, event, TRUE);
+      create_event_emission_chain (sprite, priv->event_emission_chain, seat_grab_actor, target_actor, event);
       setup_sequence_actions (sprite, priv->event_emission_chain, event);
     }
 
@@ -910,7 +866,7 @@ clutter_sprite_propagate_event (ClutterFocus       *focus,
     }
   else
     {
-      create_event_emission_chain (sprite, priv->cur_event_emission_chain, seat_grab_actor, target_actor, event, FALSE);
+      create_event_emission_chain (sprite, priv->cur_event_emission_chain, seat_grab_actor, target_actor, event);
 
       emit_event (event, priv->cur_event_emission_chain);
 
@@ -1069,14 +1025,16 @@ clutter_sprite_maybe_break_implicit_grab (ClutterSprite *sprite,
 {
   ClutterSpritePrivate *priv = clutter_sprite_get_instance_private (sprite);
   unsigned int i;
+  ClutterActor *parent = clutter_actor_get_parent (actor);
+
+  if (priv->implicit_grab_actor != actor)
+    return;
 
   CLUTTER_NOTE (GRABS,
                 "[device=%p sequence=%p] Cancelling implicit grab on actor (%s) "
                 "due to unmap",
                 priv->device, priv->sequence,
                 _clutter_actor_get_debug_name (actor));
-
-unsigned int n_remaining = 0;
 
   for (i = 0; i < priv->event_emission_chain->len; i++)
     {
@@ -1085,13 +1043,8 @@ unsigned int n_remaining = 0;
 
       if (receiver->actor)
         {
-          if (receiver->actor == actor) {
-  clutter_actor_set_implicitly_grabbed (actor, FALSE);
+          if (receiver->actor == actor)
             g_clear_object (&receiver->actor);
-} else {
-            n_remaining++;
-}
-
         }
       else if (receiver->action)
         {
@@ -1103,13 +1056,18 @@ unsigned int n_remaining = 0;
               clutter_action_sequence_cancelled (receiver->action, sprite);
               g_clear_object (&receiver->action);
             }
-          else
-            n_remaining++;
-
         }
     }
 
-  if (n_remaining == 0)
+  if (parent)
+    {
+      g_assert (clutter_actor_is_mapped (parent));
+
+      clutter_actor_set_implicitly_grabbed (priv->implicit_grab_actor, FALSE);
+      priv->implicit_grab_actor = parent;
+      clutter_actor_set_implicitly_grabbed (priv->implicit_grab_actor, TRUE);
+    }
+  else
     {
       sync_crossings_on_implicit_grab_end (sprite);
       cleanup_implicit_grab (sprite);
@@ -1152,7 +1110,7 @@ clutter_sprite_emit_crossing_event (ClutterSprite      *sprite,
           event_emission_chain = g_array_ref (priv->cur_event_emission_chain);
         }
 
-      create_event_emission_chain (sprite, event_emission_chain, topmost, deepmost, event, FALSE);
+      create_event_emission_chain (sprite, event_emission_chain, topmost, deepmost, event);
 
       emit_event (event, event_emission_chain);
 
