@@ -2259,9 +2259,6 @@ window_would_mostly_be_covered_by_always_above_window (MetaWindow *window)
   intersection_area = calculate_region_area (region);
   visible_area = window_area - intersection_area;
 
-  if (window_area == 0)
-    return FALSE;
-
 #define REQUIRED_VISIBLE_AREA_PERCENT 40
   if ((100 * visible_area) / window_area > REQUIRED_VISIBLE_AREA_PERCENT)
     return FALSE;
