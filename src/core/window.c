@@ -250,6 +250,8 @@ enum
   SHOWN,
   HIGHEST_SCALE_MONITOR_CHANGED,
   CONFIGURE,
+  TRANSIENT_FOR_CHANGED,
+  CAN_MAXIMIZE_CHANGED,
 
   LAST_SIGNAL
 };
@@ -824,6 +826,34 @@ meta_window_class_init (MetaWindowClass *klass)
                   NULL, NULL, NULL,
                   G_TYPE_NONE, 1,
                   META_TYPE_WINDOW_CONFIG);
+
+  /**
+   * MetaWindow::transient-for-changed:
+   * @window: a #MetaWindow
+   *
+   * Emitted when the transient-for window has changed.
+   */
+  window_signals[TRANSIENT_FOR_CHANGED] =
+    g_signal_new ("transient-for-changed",
+                  G_TYPE_FROM_CLASS (object_class),
+                  G_SIGNAL_RUN_LAST,
+                  0,
+                  NULL, NULL, NULL,
+                  G_TYPE_NONE, 0);
+
+  /**
+   * MetaWindow::can-maximize-changed:
+   * @window: a #MetaWindow
+   *
+   * Emitted when can-maximize of the window has changed.
+   */
+  window_signals[CAN_MAXIMIZE_CHANGED] =
+    g_signal_new ("can-maximize-changed",
+                  G_TYPE_FROM_CLASS (object_class),
+                  G_SIGNAL_RUN_LAST,
+                  0,
+                  NULL, NULL, NULL,
+                  G_TYPE_NONE, 0);
 }
 
 static void
@@ -1185,7 +1215,8 @@ meta_window_constructed (GObject *object)
 
   window->has_close_func = TRUE;
   window->has_minimize_func = TRUE;
-  window->has_maximize_func = TRUE;
+  window->has_maximize_vert_func = TRUE;
+  window->has_maximize_horiz_func = TRUE;
   window->has_move_func = TRUE;
   window->has_resize_func = TRUE;
 
@@ -1221,6 +1252,8 @@ meta_window_constructed (GObject *object)
   window->initial_timestamp = 0; /* not used */
 
   window->compositor_private = NULL;
+
+  window->can_grab = TRUE;
 
   if (frame_rect.width > 0 && frame_rect.height > 0 &&
       (window->size_hints.flags & META_SIZE_HINTS_USER_POSITION))
@@ -2224,17 +2257,13 @@ window_would_mostly_be_covered_by_always_above_window (MetaWindow *window)
 }
 
 void
-meta_window_force_placement (MetaWindow    *window,
-                             MetaPlaceFlag  place_flags)
+meta_window_maybe_place (MetaWindow    *window,
+                         MetaPlaceFlag  place_flags)
 {
   MetaMoveResizeFlags flags;
 
   if (window->placed)
     return;
-
-  /* We have to recalc the placement here since other windows may
-   * have been mapped/placed since we last did constrain_position
-   */
 
   flags = (META_MOVE_RESIZE_MOVE_ACTION |
            META_MOVE_RESIZE_RESIZE_ACTION |
@@ -2247,12 +2276,6 @@ meta_window_force_placement (MetaWindow    *window,
                                     place_flags | META_PLACE_FLAG_CALCULATE,
                                     window->unconstrained_rect,
                                     NULL);
-
-  /* don't ever do the initial position constraint thing again.
-   * This is toggled here so that initially-iconified windows
-   * still get placed when they are ultimately shown.
-   */
-  window->placed = TRUE;
 }
 
 static void
@@ -2368,7 +2391,7 @@ implement_showing (MetaWindow *window,
        */
       if (!window->placed && window_has_buffer (window) &&
           meta_window_config_is_floating (window->config))
-        meta_window_force_placement (window, META_PLACE_FLAG_NONE);
+        meta_window_maybe_place (window, META_PLACE_FLAG_NONE);
 
       meta_window_hide (window);
 
@@ -2449,7 +2472,7 @@ meta_window_show (MetaWindow *window)
 
   if (!window->placed &&
       meta_window_config_is_floating (window->config))
-    meta_window_force_placement (window, place_flags);
+    meta_window_maybe_place (window, place_flags);
 
   if (focus_window &&
       window->showing_for_first_time &&
@@ -3341,7 +3364,7 @@ meta_window_restore_tile (MetaWindow   *window,
 static gboolean
 meta_window_can_tile_maximized (MetaWindow *window)
 {
-  return window->has_maximize_func;
+  return window->has_maximize_vert_func && window->has_maximize_horiz_func;
 }
 
 gboolean
@@ -4149,8 +4172,8 @@ meta_window_update_monitor (MetaWindow                   *window,
 
       meta_window_main_monitor_changed (window, old);
 
-      /* If we're changing monitors, we need to update the has_maximize_func flag,
-       * as the working area has changed. */
+      /* If we're changing monitors, we need to update the
+       * has_maximize_vert/horiz_func flag, as the working area has changed. */
       meta_window_recalc_features (window);
 
       meta_display_queue_check_fullscreen (window->display);
@@ -4214,7 +4237,7 @@ meta_window_move_resize_internal (MetaWindow          *window,
                      META_MOVE_RESIZE_RESIZE_ACTION |
                      META_MOVE_RESIZE_WAYLAND_FINISH_MOVE_RESIZE));
 
-  did_placement = !window->placed && (place_flags & META_PLACE_FLAG_CALCULATE);
+  did_placement = window->placed;
 
   gravity = meta_window_get_gravity (window);
 
@@ -4283,6 +4306,8 @@ meta_window_move_resize_internal (MetaWindow          *window,
       rel_x = window->placement.pending.rel_x;
       rel_y = window->placement.pending.rel_y;
     }
+
+  did_placement = !did_placement && window->placed;
 
   /* If we did placement, then we need to save the position that the window
    * was placed at to make sure that meta_window_idle_move_resize() places the
@@ -5877,6 +5902,8 @@ meta_window_recalc_features (MetaWindow *window)
   gboolean old_has_resize_func;
   gboolean old_always_sticky;
   gboolean old_skip_taskbar;
+  gboolean old_has_maximize_vert_func;
+  gboolean old_has_maximize_horiz_func;
 
   old_has_close_func = window->has_close_func;
   old_has_minimize_func = window->has_minimize_func;
@@ -5884,6 +5911,8 @@ meta_window_recalc_features (MetaWindow *window)
   old_has_resize_func = window->has_resize_func;
   old_always_sticky = window->always_sticky;
   old_skip_taskbar = window->skip_taskbar;
+  old_has_maximize_vert_func = window->has_maximize_vert_func;
+  old_has_maximize_horiz_func = window->has_maximize_horiz_func;
 
   /* Use MWM hints initially */
   if (window->client_type == META_WINDOW_CLIENT_TYPE_X11)
@@ -5893,7 +5922,8 @@ meta_window_recalc_features (MetaWindow *window)
   window->border_only = window->mwm_border_only;
   window->has_close_func = window->mwm_has_close_func;
   window->has_minimize_func = window->mwm_has_minimize_func;
-  window->has_maximize_func = window->mwm_has_maximize_func;
+  window->has_maximize_vert_func = window->mwm_has_maximize_func;
+  window->has_maximize_horiz_func = window->mwm_has_maximize_func;
   window->has_move_func = window->mwm_has_move_func;
 
   window->has_resize_func = TRUE;
@@ -5954,16 +5984,18 @@ meta_window_recalc_features (MetaWindow *window)
       window->has_resize_func = FALSE;
     }
 
-  if (window->type != META_WINDOW_NORMAL)
+  if (window->type != META_WINDOW_NORMAL && window->type != META_WINDOW_MODAL_DIALOG)
     {
       window->has_minimize_func = FALSE;
-      window->has_maximize_func = FALSE;
+      window->has_maximize_vert_func = FALSE;
+      window->has_maximize_horiz_func = FALSE;
       window->has_fullscreen_func = FALSE;
     }
 
   if (!window->has_resize_func)
     {
-      window->has_maximize_func = FALSE;
+      window->has_maximize_vert_func = FALSE;
+      window->has_maximize_horiz_func = FALSE;
       MtkRectangle display_rect = { 0 };
 
       meta_display_get_size (window->display, &display_rect.width,
@@ -5992,26 +6024,36 @@ meta_window_recalc_features (MetaWindow *window)
     {
       window->has_move_func = FALSE;
       window->has_resize_func = FALSE;
-      window->has_maximize_func = FALSE;
+      // FIXME: This will proabbly cause issues later with auto-unmax
+      window->has_maximize_vert_func = FALSE;
+      window->has_maximize_horiz_func = FALSE;
     }
 
-  if (window->has_maximize_func && window->monitor)
+  if (window->monitor)
     {
       MtkRectangle work_area, client_rect;
 
       meta_window_get_work_area_current_monitor (window, &work_area);
       meta_window_frame_rect_to_client_rect (window, &work_area, &client_rect);
 
-      if (window->size_hints.min_width > client_rect.width ||
-          window->size_hints.min_height > client_rect.height)
-        window->has_maximize_func = FALSE;
+      if (window->has_maximize_vert_func &&
+          (window->size_hints.min_height > client_rect.height ||
+           window->size_hints.max_height < client_rect.height))
+        window->has_maximize_vert_func = FALSE;
+
+      if (window->has_maximize_horiz_func &&
+          (window->size_hints.min_width > client_rect.width ||
+           window->size_hints.max_width < client_rect.width))
+        window->has_maximize_horiz_func = FALSE;
     }
 
   meta_topic (META_DEBUG_WINDOW_OPS,
-              "Window %s fullscreen = %d not resizable, maximizable = %d fullscreenable = %d min size %dx%d max size %dx%d",
+              "Window %s fullscreen = %d not resizable, maximizable = v:%d,h:%d fullscreenable = %d min size %dx%d max size %dx%d",
               window->desc,
               meta_window_is_fullscreen (window),
-              window->has_maximize_func, window->has_fullscreen_func,
+              window->has_maximize_vert_func,
+              window->has_maximize_horiz_func,
+              window->has_fullscreen_func,
               window->size_hints.min_width,
               window->size_hints.min_height,
               window->size_hints.max_width,
@@ -6025,13 +6067,12 @@ meta_window_recalc_features (MetaWindow *window)
     window->has_minimize_func = FALSE;
 
   meta_topic (META_DEBUG_WINDOW_OPS,
-              "Window %s decorated = %d border_only = %d has_close = %d has_minimize = %d has_maximize = %d has_move = %d skip_taskbar = %d skip_pager = %d",
+              "Window %s decorated = %d border_only = %d has_close = %d has_minimize = %d has_move = %d skip_taskbar = %d skip_pager = %d",
               window->desc,
               window->decorated,
               window->border_only,
               window->has_close_func,
               window->has_minimize_func,
-              window->has_maximize_func,
               window->has_move_func,
               window->skip_taskbar,
               window->skip_pager);
@@ -6059,6 +6100,26 @@ meta_window_recalc_features (MetaWindow *window)
     g_object_notify_by_pspec (G_OBJECT (window), obj_props[PROP_RESIZEABLE]);
 
   meta_window_frame_size_changed (window);
+
+  if (window->has_maximize_vert_func != old_has_maximize_vert_func ||
+      window->has_maximize_horiz_func != old_has_maximize_horiz_func)
+    {
+      if ((meta_window_config_is_maximized_horizontally (window->config) && !window->has_maximize_horiz_func) ||
+          (meta_window_config_is_maximized_vertically (window->config) && !window->has_maximize_vert_func))
+        {
+          MetaMaximizeFlags unmaximize_flags = 0;
+
+          if (old_has_maximize_vert_func && !window->has_maximize_vert_func)
+            unmaximize_flags |= META_MAXIMIZE_VERTICAL;
+
+          if (old_has_maximize_horiz_func && !window->has_maximize_horiz_func)
+            unmaximize_flags |= META_MAXIMIZE_HORIZONTAL;
+
+          meta_window_set_unmaximize_flags (window, unmaximize_flags);
+        }
+
+      g_signal_emit (window, window_signals[CAN_MAXIMIZE_CHANGED], 0);
+    }
 }
 
 void
@@ -7542,6 +7603,7 @@ meta_window_set_transient_for (MetaWindow *window,
                                MetaWindow *parent)
 {
   MetaWindowClass *klass = META_WINDOW_GET_CLASS (window);
+  MetaWindow *old_transient_for = window->transient_for;
 
   if (check_transient_for_loop (window, parent))
     {
@@ -7586,6 +7648,9 @@ meta_window_set_transient_for (MetaWindow *window,
 
   if (parent && parent->on_all_workspaces)
     meta_window_stick (window);
+
+  if (window->transient_for != old_transient_for)
+    g_signal_emit (window, window_signals[TRANSIENT_FOR_CHANGED], 0);
 }
 
 void
@@ -7799,7 +7864,19 @@ meta_window_handle_ungrabbed_event (MetaWindow         *window,
 gboolean
 meta_window_can_maximize (MetaWindow *window)
 {
-  return window->has_maximize_func;
+  return window->has_maximize_vert_func && window->has_maximize_horiz_func;
+}
+
+gboolean
+meta_window_can_maximize_vertically (MetaWindow *window)
+{
+  return window->has_maximize_vert_func;
+}
+
+gboolean
+meta_window_can_maximize_horizontally (MetaWindow *window)
+{
+  return window->has_maximize_horiz_func;
 }
 
 gboolean
@@ -8699,4 +8776,25 @@ meta_window_show_in_window_list (MetaWindow *window)
 
   window->skip_from_window_list = FALSE;
   meta_window_recalc_features (window);
+}
+
+void
+meta_window_set_can_grab (MetaWindow *window,
+                          gboolean    can_grab)
+{
+  MetaWindowDrag *window_drag;
+
+  if (window->can_grab == can_grab)
+    return;
+
+  window->can_grab = can_grab;
+
+  window_drag =
+    meta_compositor_get_current_window_drag (window->display->compositor);
+
+  if (!window->can_grab &&
+      window_drag && meta_window_drag_get_window (window_drag) == window)
+    {
+      meta_window_drag_end (window_drag);
+    }
 }

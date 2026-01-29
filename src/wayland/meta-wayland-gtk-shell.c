@@ -258,8 +258,11 @@ gtk_surface_titlebar_gesture (struct wl_client   *client,
   switch (action)
     {
     case G_DESKTOP_TITLEBAR_ACTION_TOGGLE_MAXIMIZE:
-      if (!window->has_maximize_func)
+      if (meta_window_can_maximize (window))
         break;
+
+      if (!window->can_grab)
+        return;
 
       if (meta_window_is_maximized (window))
         meta_window_unmaximize (window);
@@ -268,8 +271,11 @@ gtk_surface_titlebar_gesture (struct wl_client   *client,
       break;
 
     case G_DESKTOP_TITLEBAR_ACTION_TOGGLE_MAXIMIZE_HORIZONTALLY:
-      if (!window->has_maximize_func)
+      if (meta_window_can_maximize (window))
         break;
+
+      if (!window->can_grab)
+        return;
 
       if (meta_window_get_maximize_flags (window) & META_MAXIMIZE_HORIZONTAL)
         meta_window_set_unmaximize_flags (window, META_MAXIMIZE_HORIZONTAL);
@@ -278,8 +284,11 @@ gtk_surface_titlebar_gesture (struct wl_client   *client,
       break;
 
     case G_DESKTOP_TITLEBAR_ACTION_TOGGLE_MAXIMIZE_VERTICALLY:
-      if (!window->has_maximize_func)
+      if (meta_window_can_maximize (window))
         break;
+
+      if (!window->can_grab)
+        return;
 
       if (meta_window_get_maximize_flags (window) & META_MAXIMIZE_VERTICAL)
         meta_window_set_unmaximize_flags (window, META_MAXIMIZE_VERTICAL);
@@ -288,7 +297,7 @@ gtk_surface_titlebar_gesture (struct wl_client   *client,
       break;
 
     case G_DESKTOP_TITLEBAR_ACTION_MINIMIZE:
-      if (!window->has_minimize_func)
+      if (meta_window_can_maximize (window))
         break;
 
       meta_window_minimize (window);

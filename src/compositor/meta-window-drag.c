@@ -1389,7 +1389,8 @@ update_move (MetaWindowDrag          *window_drag,
    * loose via X motion.
    */
 
-  if ((meta_window_is_maximized (window) && ABS (dy) >= shake_threshold) ||
+  if (((meta_window_get_maximize_flags (window) & META_MAXIMIZE_VERTICAL) && ABS (dy) >= shake_threshold) ||
+      ((meta_window_get_maximize_flags (window) & META_MAXIMIZE_HORIZONTAL) && ABS (dx) >= shake_threshold) ||
       (meta_window_is_tiled_side_by_side (window) &&
        (MAX (ABS (dx), ABS (dy)) >= shake_threshold)))
     {
@@ -1962,6 +1963,9 @@ meta_window_drag_begin (MetaWindowDrag      *window_drag,
   MetaGrabOp grab_op = window_drag->grab_op;
   ClutterStage *stage;
   int root_x, root_y;
+
+  if (!window->can_grab)
+    return FALSE;
 
   grab_window = window;
 

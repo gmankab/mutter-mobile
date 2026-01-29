@@ -1088,7 +1088,7 @@ meta_window_place (MetaWindow        *window,
 maybe_automaximize:
   if (meta_prefs_get_auto_maximize () &&
       window->showing_for_first_time &&
-      window->has_maximize_func)
+      meta_window_can_maximize (window))
     {
       int window_area;
       int work_area_area;

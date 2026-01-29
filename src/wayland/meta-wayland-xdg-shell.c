@@ -483,6 +483,9 @@ xdg_toplevel_unset_maximized (struct wl_client   *client,
   if (!window)
     return;
 
+  if (!window->can_grab)
+    return;
+
   meta_window_unmaximize (window);
 }
 
@@ -1100,7 +1103,12 @@ meta_wayland_xdg_toplevel_post_apply_state (MetaWaylandSurfaceRole  *surface_rol
     }
 
   if (update_min_size || update_max_size)
-    meta_window_recalc_features (window);
+    {
+      meta_window_recalc_features (window);
+
+      if (meta_window_is_maximized (window))
+        meta_window_queue (window, META_QUEUE_MOVE_RESIZE);
+    }
 }
 
 static MetaWaylandSurface *

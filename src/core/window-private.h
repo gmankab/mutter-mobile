@@ -499,7 +499,8 @@ struct _MetaWindow
   guint always_sticky : 1;
   guint has_close_func : 1;
   guint has_minimize_func : 1;
-  guint has_maximize_func : 1;
+  guint has_maximize_vert_func : 1;
+  guint has_maximize_horiz_func : 1;
   guint has_move_func : 1;
   guint has_resize_func : 1;
   guint has_fullscreen_func : 1;
@@ -556,6 +557,7 @@ struct _MetaWindow
   guint is_alive : 1;
 
   guint in_workspace_change : 1;
+  unsigned int can_grab : 1;
 };
 
 struct _MetaWindowClass
@@ -833,8 +835,8 @@ void meta_window_emit_configure (MetaWindow       *window,
 
 MetaPlacementRule *meta_window_get_placement_rule (MetaWindow *window);
 
-void meta_window_force_placement (MetaWindow    *window,
-                                  MetaPlaceFlag  flags);
+void meta_window_maybe_place (MetaWindow    *window,
+                              MetaPlaceFlag  flags);
 
 void meta_window_force_restore_shortcuts (MetaWindow         *window,
                                           ClutterInputDevice *source);
