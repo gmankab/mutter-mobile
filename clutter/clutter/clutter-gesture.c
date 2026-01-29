@@ -169,11 +169,6 @@ static void
 maybe_move_to_waiting (ClutterGesture *self);
 
 static void
-set_state (ClutterGesture      *self,
-           ClutterGestureState  new_state,
-           gboolean             influence_others);
-
-static void
 set_state_authoritative (ClutterGesture      *self,
                          ClutterGestureState  new_state);
 
@@ -491,41 +486,8 @@ maybe_cancel_independent_gestures (ClutterGesture *self)
 }
 
 static void
-maybe_influence_other_gestures (ClutterGesture      *self,
-                                ClutterGestureState  state)
-{
-  ClutterGesturePrivate *priv = clutter_gesture_get_instance_private (self);
-
-  if (state == CLUTTER_GESTURE_STATE_RECOGNIZING ||
-      state == CLUTTER_GESTURE_STATE_COMPLETED)
-    {
-      unsigned int i;
-
-      for (i = 0; i < priv->cancel_on_recognizing->len; i++)
-        {
-          ClutterGesture *other_gesture = priv->cancel_on_recognizing->pdata[i];
-          ClutterGesturePrivate *other_priv =
-            clutter_gesture_get_instance_private (other_gesture);
-
-          if (!g_hash_table_contains (priv->in_relationship_with, other_gesture))
-            continue;
-
-          g_assert (other_priv->state != CLUTTER_GESTURE_STATE_WAITING);
-
-          if (other_priv->state == CLUTTER_GESTURE_STATE_CANCELLED ||
-              other_priv->state == CLUTTER_GESTURE_STATE_COMPLETED)
-            continue;
-
-          set_state (other_gesture, CLUTTER_GESTURE_STATE_CANCELLED, FALSE);
-          maybe_move_to_waiting (other_gesture);
-        }
-    }
-}
-
-static void
 set_state (ClutterGesture      *self,
-           ClutterGestureState  new_state,
-           gboolean             influence_others)
+           ClutterGestureState  new_state)
 {
   ClutterGesturePrivate *priv = clutter_gesture_get_instance_private (self);
   ClutterGestureState old_state;
@@ -632,9 +594,6 @@ set_state (ClutterGesture      *self,
        * recognize anyway.
        */
       maybe_cancel_independent_gestures (self);
-
-      if (influence_others)
-        maybe_influence_other_gestures (self, new_state);
     }
 
   if (new_state == CLUTTER_GESTURE_STATE_WAITING)
@@ -705,14 +664,53 @@ maybe_move_to_waiting (ClutterGesture *self)
         return;
     }
 
-  set_state (self, CLUTTER_GESTURE_STATE_WAITING, FALSE);
+  set_state (self, CLUTTER_GESTURE_STATE_WAITING);
+}
+
+static void
+maybe_influence_other_gestures (ClutterGesture *self)
+{
+  ClutterGesturePrivate *priv = clutter_gesture_get_instance_private (self);
+
+  if (priv->state == CLUTTER_GESTURE_STATE_RECOGNIZING ||
+      priv->state == CLUTTER_GESTURE_STATE_COMPLETED)
+    {
+      unsigned int i;
+
+      for (i = 0; i < priv->cancel_on_recognizing->len; i++)
+        {
+          ClutterGesture *other_gesture = priv->cancel_on_recognizing->pdata[i];
+          ClutterGesturePrivate *other_priv =
+            clutter_gesture_get_instance_private (other_gesture);
+
+          if (!g_hash_table_contains (priv->in_relationship_with, other_gesture))
+            continue;
+
+          g_assert (other_priv->state != CLUTTER_GESTURE_STATE_WAITING);
+
+          if (other_priv->state == CLUTTER_GESTURE_STATE_CANCELLED ||
+              other_priv->state == CLUTTER_GESTURE_STATE_COMPLETED)
+            continue;
+
+          set_state (other_gesture, CLUTTER_GESTURE_STATE_CANCELLED);
+          maybe_move_to_waiting (other_gesture);
+        }
+    }
 }
 
 void
 set_state_authoritative (ClutterGesture      *self,
                          ClutterGestureState  new_state)
 {
-  set_state (self, new_state, TRUE);
+  ClutterGesturePrivate *priv = clutter_gesture_get_instance_private (self);
+  ClutterGestureState old_state = priv->state;
+
+  set_state (self, new_state);
+
+  if (priv->state == CLUTTER_GESTURE_STATE_RECOGNIZING ||
+      (old_state != CLUTTER_GESTURE_STATE_RECOGNIZING &&
+       priv->state == CLUTTER_GESTURE_STATE_COMPLETED))
+    maybe_influence_other_gestures (self);
   maybe_move_to_waiting (self);
 }
 
@@ -977,7 +975,7 @@ clutter_gesture_handle_event (ClutterAction      *action,
       debug_message (self,
                      "Cancelling other gestures on newly added point automatically");
 
-      maybe_influence_other_gestures (self, priv->state);
+      maybe_influence_other_gestures (self);
     }
 
   return CLUTTER_EVENT_PROPAGATE;
