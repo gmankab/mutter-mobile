@@ -67,9 +67,17 @@ struct _MetaWaylandPopup
   struct wl_list link;
 };
 
+static void meta_wayland_popup_grab_finish (MetaWaylandPopupGrab *grab);
+
 static void
 meta_wayland_popup_surface_default_init (MetaWaylandPopupSurfaceInterface *iface)
 {
+}
+
+static void
+meta_wayland_popup_surface_done (MetaWaylandPopupSurface *popup_surface)
+{
+  META_WAYLAND_POPUP_SURFACE_GET_IFACE (popup_surface)->done (popup_surface);
 }
 
 static void
@@ -129,12 +137,54 @@ popup_grab_focus (MetaWaylandEventHandler *handler,
   meta_wayland_event_handler_chain_up_focus (handler, focus, surface);
 }
 
+static gboolean
+popup_grab_release (MetaWaylandEventHandler *handler,
+                    const ClutterEvent      *event,
+                    gpointer                 user_data)
+{
+  MetaWaylandPopupGrab *popup_grab = user_data;
+  gboolean close_popup;
+
+  close_popup = __builtin_popcount (clutter_event_get_state (event) &
+				    (CLUTTER_BUTTON1_MASK |
+				     CLUTTER_BUTTON2_MASK |
+				     CLUTTER_BUTTON3_MASK |
+				     CLUTTER_BUTTON4_MASK |
+				     CLUTTER_BUTTON5_MASK)) <= 1;
+
+  if (close_popup)
+    {
+      MetaWaylandSeat *seat = popup_grab->seat;
+      MetaContext *context =
+        meta_wayland_compositor_get_context (seat->compositor);
+      MetaBackend *backend = meta_context_get_backend (context);
+      ClutterStage *stage = CLUTTER_STAGE (meta_backend_get_stage (backend));
+      ClutterBackend *clutter_backend =
+        meta_backend_get_clutter_backend (backend);
+      ClutterFocus *focus;
+      MetaWaylandSurface *surface;
+
+      focus = CLUTTER_FOCUS (clutter_backend_get_sprite (clutter_backend,
+                                                         stage, event));
+      surface = meta_wayland_seat_get_current_surface (popup_grab->seat, focus);
+
+      if (!surface ||
+          meta_wayland_surface_get_client (surface) != popup_grab->grab_client)
+        {
+          meta_wayland_popup_grab_finish (popup_grab);
+          return CLUTTER_EVENT_STOP;
+        }
+    }
+
+  return CLUTTER_EVENT_PROPAGATE;
+}
+
 static MetaWaylandEventInterface popup_event_interface = {
   popup_grab_get_focus_surface,
   popup_grab_focus,
   NULL, /* motion */
   NULL, /* press */
-  NULL,
+  popup_grab_release,
 };
 
 MetaWaylandPopupGrab *
@@ -154,9 +204,24 @@ meta_wayland_popup_grab_create (MetaWaylandSeat         *seat,
   grab->handler =
     meta_wayland_input_attach_event_handler (input,
                                              &popup_event_interface,
-                                             FALSE, grab);
+                                             TRUE, grab);
 
   return grab;
+}
+
+void
+meta_wayland_popup_grab_finish (MetaWaylandPopupGrab *grab)
+{
+  MetaWaylandPopup *popup, *tmp;
+
+  wl_list_for_each_safe (popup, tmp, &grab->all_popups, link)
+    {
+      MetaWaylandPopupSurface *popup_surface = popup->popup_surface;
+
+      meta_wayland_popup_surface_done (popup_surface);
+      meta_wayland_popup_destroy (popup);
+      meta_wayland_popup_surface_finish (popup_surface);
+    }
 }
 
 void
